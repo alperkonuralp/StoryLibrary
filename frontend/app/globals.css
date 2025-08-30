@@ -1,0 +1,230 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom styles for story reading */
+.story-paragraph {
+  @apply mb-4 leading-relaxed;
+}
+
+.story-paragraph.english {
+  @apply text-left;
+}
+
+.story-paragraph.turkish {
+  @apply text-left;
+}
+
+.story-paragraph.bilingual {
+  @apply border-l-4 border-primary/20 pl-4 mb-6;
+}
+
+.story-paragraph.bilingual .english-text {
+  @apply block mb-2 text-foreground;
+}
+
+.story-paragraph.bilingual .turkish-text {
+  @apply block text-muted-foreground italic;
+}
+
+/* Loading animations */
+.loading-pulse {
+  @apply animate-pulse bg-muted rounded;
+}
+
+.loading-skeleton {
+  @apply animate-pulse bg-gradient-to-r from-muted via-muted/50 to-muted bg-[length:200%_100%];
+  animation: loading-skeleton 1.5s infinite;
+}
+
+@keyframes loading-skeleton {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Story reader specific styles */
+.story-reader {
+  @apply max-w-4xl mx-auto;
+}
+
+.story-reader .story-title {
+  @apply text-3xl font-bold mb-4 text-center;
+}
+
+.story-reader .story-description {
+  @apply text-lg text-muted-foreground mb-8 text-center italic;
+}
+
+.story-reader .story-content {
+  @apply space-y-4;
+}
+
+.story-reader .paragraph-toggle {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background;
+  @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  @apply h-8 w-8 ml-2;
+}
+
+/* Language toggle styles */
+.language-toggle {
+  @apply flex gap-1 p-1 bg-muted rounded-lg;
+}
+
+.language-toggle button {
+  @apply px-3 py-1 rounded text-sm font-medium transition-all;
+}
+
+.language-toggle button.active {
+  @apply bg-background text-foreground shadow-sm;
+}
+
+.language-toggle button:not(.active) {
+  @apply text-muted-foreground hover:text-foreground;
+}
+
+/* Story card styles */
+.story-card {
+  @apply bg-card text-card-foreground rounded-lg border shadow-sm transition-shadow hover:shadow-md;
+}
+
+.story-card .story-card-header {
+  @apply p-6 pb-3;
+}
+
+.story-card .story-card-title {
+  @apply text-lg font-semibold leading-tight;
+}
+
+.story-card .story-card-description {
+  @apply text-sm text-muted-foreground mt-2;
+}
+
+.story-card .story-card-content {
+  @apply px-6 pb-6;
+}
+
+.story-card .story-card-footer {
+  @apply px-6 py-3 border-t bg-muted/50;
+}
+
+/* Rating component */
+.rating-stars {
+  @apply flex gap-1;
+}
+
+.rating-star {
+  @apply w-4 h-4 cursor-pointer transition-colors;
+}
+
+.rating-star.filled {
+  @apply text-yellow-400;
+}
+
+.rating-star.empty {
+  @apply text-muted-foreground;
+}
+
+.rating-star:hover {
+  @apply text-yellow-400;
+}
+
+/* Progress bar */
+.progress-bar {
+  @apply w-full bg-secondary rounded-full h-2;
+}
+
+.progress-bar-fill {
+  @apply bg-primary h-2 rounded-full transition-all duration-300;
+}
+
+/* Responsive design helpers */
+@media (max-width: 640px) {
+  .story-reader {
+    @apply px-4;
+  }
+  
+  .story-reader .story-title {
+    @apply text-2xl;
+  }
+  
+  .story-reader .story-description {
+    @apply text-base;
+  }
+}

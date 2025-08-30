@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(npm install)",
+      "Bash(npm cache clean:*)",
+      "Bash(rm:*)",
+      "Bash(npm install:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npm ls:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(timeout 30 npx prisma migrate dev --name initial)",
+      "Bash(curl:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

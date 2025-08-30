@@ -1,0 +1,195 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  USER
+}
+
+enum StoryStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum ReadingStatus {
+  STARTED
+  COMPLETED
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  username      String?        @unique
+  passwordHash  String?
+  role          UserRole       @default(USER)
+  profile       Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  stories       Story[]        @relation("StoryCreator")
+  ratings       UserStoryRating[]
+  progress      UserReadingProgress[]
+  
+  @@index([email])
+  @@index([username])
+}
+
+model Story {
+  id                String         @id @default(uuid())
+  title             Json           // {"en": "Title", "tr": "Başlık"}
+  shortDescription  Json           // {"en": "Description", "tr": "Açıklama"}
+  slug              String         @unique
+  content           Json           // {"en": ["para1", "para2"], "tr": ["para1", "para2"]}
+  status            StoryStatus    @default(DRAFT)
+  sourceInfo        Json?          // {"siteName": "...", "originalUrl": "...", "scrapedAt": "..."}
+  statistics        Json?          // {"wordCount": {"en": 150, "tr": 140}, ...}
+  editorRating      Decimal?       @db.Decimal(3, 2)
+  averageRating     Decimal?       @db.Decimal(3, 2)
+  ratingCount       Int            @default(0)
+  metadata          Json?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  publishedAt       DateTime?
+  createdBy         String
+  creator           User           @relation("StoryCreator", fields: [createdBy], references: [id])
+  
+  authors           StoryAuthor[]
+  categories        StoryCategory[]
+  tags              StoryTag[]
+  series            StorySeries[]
+  ratings           UserStoryRating[]
+  progress          UserReadingProgress[]
+  
+  @@index([slug])
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model Author {
+  id            String         @id @default(uuid())
+  name          String
+  bio           Json?          // {"en": "Biography", "tr": "Biyografi"}
+  slug          String         @unique
+  createdAt     DateTime       @default(now())
+  
+  stories       StoryAuthor[]
+  
+  @@index([slug])
+}
+
+model Category {
+  id            String         @id @default(uuid())
+  name          Json           // {"en": "Name", "tr": "İsim"}
+  description   Json?
+  slug          String         @unique
+  createdAt     DateTime       @default(now())
+  
+  stories       StoryCategory[]
+  
+  @@index([slug])
+}
+
+model Tag {
+  id            String         @id @default(uuid())
+  name          Json           // {"en": "Name", "tr": "İsim"}
+  slug          String         @unique
+  color         String?
+  createdAt     DateTime       @default(now())
+  
+  stories       StoryTag[]
+  
+  @@index([slug])
+}
+
+model Series {
+  id            String         @id @default(uuid())
+  name          Json           // {"en": "Name", "tr": "İsim"}
+  description   Json?
+  slug          String         @unique
+  createdAt     DateTime       @default(now())
+  
+  stories       StorySeries[]
+  
+  @@index([slug])
+}
+
+// Relation Tables
+model StoryAuthor {
+  storyId       String
+  authorId      String
+  role          String         @default("author") // 'author', 'co-author', 'translator'
+  story         Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  author        Author         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  @@id([storyId, authorId])
+}
+
+model StoryCategory {
+  storyId       String
+  categoryId    String
+  story         Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  category      Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  @@id([storyId, categoryId])
+}
+
+model StoryTag {
+  storyId       String
+  tagId         String
+  story         Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  tag           Tag            @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@id([storyId, tagId])
+}
+
+model StorySeries {
+  storyId       String
+  seriesId      String
+  orderInSeries Int
+  story         Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  series        Series         @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  
+  @@id([storyId, seriesId])
+}
+
+model UserStoryRating {
+  id            String         @id @default(uuid())
+  userId        String
+  storyId       String
+  rating        Decimal        @db.Decimal(3, 2)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story         Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, storyId])
+  @@index([storyId])
+}
+
+model UserReadingProgress {
+  id            String         @id @default(uuid())
+  userId        String
+  storyId       String
+  status        ReadingStatus
+  lastParagraph Int?
+  startedAt     DateTime       @default(now())
+  completedAt   DateTime?
+  
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story         Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, storyId])
+  @@index([userId])
+  @@index([storyId])
+}

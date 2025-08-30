@@ -1,0 +1,669 @@
+import { Response } from 'express';
+import { AuthenticatedRequest } from '../types';
+import { PrismaClient } from '@prisma/client';
+import { z } from 'zod';
+import bcrypt from 'bcryptjs';
+import { HTTP_STATUS } from '../utils/constants';
+
+const prisma = new PrismaClient();
+
+// Validation schemas
+const updateProfileSchema = z.object({
+  profile: z.object({
+    firstName: z.string().min(1).max(50).optional(),
+    lastName: z.string().min(1).max(50).optional(),
+    bio: z.string().max(500).optional(),
+    preferences: z.object({
+      language: z.enum(['en', 'tr']).optional(),
+      theme: z.enum(['light', 'dark', 'auto']).optional(),
+      readingMode: z.enum(['english', 'turkish', 'bilingual']).optional()
+    }).optional()
+  }).optional()
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(100)
+});
+
+const updateReadingProgressSchema = z.object({
+  storyId: z.string().uuid(),
+  lastParagraph: z.number().int().min(0),
+  status: z.enum(['STARTED', 'COMPLETED'])
+});
+
+const paginationSchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20)
+});
+
+export const userController = {
+  // GET /api/users/profile - Get current user profile
+  getProfile: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          role: true,
+          profile: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      if (!user) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'User not found'
+          }
+        });
+      }
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: user
+      });
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch user profile'
+        }
+      });
+    }
+  },
+
+  // PUT /api/users/profile - Update current user profile
+  updateProfile: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const validatedData = updateProfileSchema.parse(req.body);
+
+      const user = await prisma.user.update({
+        where: { id: req.user.id },
+        data: validatedData,
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          role: true,
+          profile: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: user
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid profile data',
+            details: error.errors
+          }
+        });
+      }
+
+      console.error('Error updating user profile:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to update user profile'
+        }
+      });
+    }
+  },
+
+  // PUT /api/users/password - Change user password
+  changePassword: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id }
+      });
+
+      if (!user || !user.passwordHash) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'User not found'
+          }
+        });
+      }
+
+      // Verify current password
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isCurrentPasswordValid) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Current password is incorrect'
+          }
+        });
+      }
+
+      // Hash new password
+      const newPasswordHash = await bcrypt.hash(newPassword, 12);
+
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: {
+          passwordHash: newPasswordHash
+        }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: {
+          message: 'Password changed successfully'
+        }
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid password data',
+            details: error.errors
+          }
+        });
+      }
+
+      console.error('Error changing password:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to change password'
+        }
+      });
+    }
+  },
+
+  // GET /api/users/progress - Get user's reading progress
+  getReadingProgress: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const { page, limit } = paginationSchema.parse(req.query);
+      const { status } = req.query;
+      const skip = (page - 1) * limit;
+
+      const where: any = { userId: req.user.id };
+      if (status && ['STARTED', 'COMPLETED'].includes(status as string)) {
+        where.status = status;
+      }
+
+      const [progress, total] = await Promise.all([
+        prisma.userReadingProgress.findMany({
+          where,
+          include: {
+            story: {
+              include: {
+                categories: {
+                  include: {
+                    category: true
+                  }
+                },
+                tags: {
+                  include: {
+                    tag: true
+                  }
+                },
+                authors: {
+                  include: {
+                    author: true
+                  }
+                }
+              }
+            }
+          },
+          skip,
+          take: limit,
+          orderBy: [
+            { completedAt: 'desc' },
+            { startedAt: 'desc' }
+          ]
+        }),
+        prisma.userReadingProgress.count({ where })
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: progress,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching reading progress:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch reading progress'
+        }
+      });
+    }
+  },
+
+  // POST /api/users/progress - Update reading progress
+  updateReadingProgress: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const { storyId, lastParagraph, status } = updateReadingProgressSchema.parse(req.body);
+
+      // Check if story exists and is published
+      const story = await prisma.story.findUnique({
+        where: { id: storyId }
+      });
+
+      if (!story || story.status !== 'PUBLISHED') {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Story not found or not published'
+          }
+        });
+      }
+
+      const progressData: any = {
+        lastParagraph,
+        status
+      };
+
+      if (status === 'COMPLETED') {
+        progressData.completedAt = new Date();
+      }
+
+      const progress = await prisma.userReadingProgress.upsert({
+        where: {
+          userId_storyId: {
+            userId: req.user.id,
+            storyId
+          }
+        },
+        create: {
+          userId: req.user.id,
+          storyId,
+          ...progressData
+        },
+        update: progressData,
+        include: {
+          story: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              statistics: true
+            }
+          }
+        }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: progress
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid progress data',
+            details: error.errors
+          }
+        });
+      }
+
+      console.error('Error updating reading progress:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to update reading progress'
+        }
+      });
+    }
+  },
+
+  // GET /api/users/completed - Get completed stories
+  getCompletedStories: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const { page, limit } = paginationSchema.parse(req.query);
+      const skip = (page - 1) * limit;
+
+      const [progress, total] = await Promise.all([
+        prisma.userReadingProgress.findMany({
+          where: {
+            userId: req.user.id,
+            status: 'COMPLETED'
+          },
+          include: {
+            story: {
+              include: {
+                categories: {
+                  include: {
+                    category: true
+                  }
+                },
+                tags: {
+                  include: {
+                    tag: true
+                  }
+                },
+                authors: {
+                  include: {
+                    author: true
+                  }
+                }
+              }
+            }
+          },
+          skip,
+          take: limit,
+          orderBy: {
+            completedAt: 'desc'
+          }
+        }),
+        prisma.userReadingProgress.count({
+          where: {
+            userId: req.user.id,
+            status: 'COMPLETED'
+          }
+        })
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+      const stories = progress.map(p => p.story);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: stories,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching completed stories:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch completed stories'
+        }
+      });
+    }
+  },
+
+  // GET /api/users/ratings - Get user's story ratings
+  getUserRatings: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const { page, limit } = paginationSchema.parse(req.query);
+      const skip = (page - 1) * limit;
+
+      const [ratings, total] = await Promise.all([
+        prisma.userStoryRating.findMany({
+          where: { userId: req.user.id },
+          include: {
+            story: {
+              include: {
+                categories: {
+                  include: {
+                    category: true
+                  }
+                },
+                tags: {
+                  include: {
+                    tag: true
+                  }
+                },
+                authors: {
+                  include: {
+                    author: true
+                  }
+                }
+              }
+            }
+          },
+          skip,
+          take: limit,
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }),
+        prisma.userStoryRating.count({
+          where: { userId: req.user.id }
+        })
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: ratings,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching user ratings:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch user ratings'
+        }
+      });
+    }
+  },
+
+  // GET /api/users/stats - Get user statistics
+  getUserStats: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const [
+        totalStarted,
+        totalCompleted,
+        totalRatings,
+        averageRating,
+        recentProgress
+      ] = await Promise.all([
+        prisma.userReadingProgress.count({
+          where: { userId: req.user.id }
+        }),
+        prisma.userReadingProgress.count({
+          where: { userId: req.user.id, status: 'COMPLETED' }
+        }),
+        prisma.userStoryRating.count({
+          where: { userId: req.user.id }
+        }),
+        prisma.userStoryRating.aggregate({
+          where: { userId: req.user.id },
+          _avg: { rating: true }
+        }),
+        prisma.userReadingProgress.findMany({
+          where: { userId: req.user.id },
+          include: {
+            story: {
+              select: {
+                id: true,
+                title: true,
+                slug: true
+              }
+            }
+          },
+          take: 5,
+          orderBy: [
+            { completedAt: 'desc' },
+            { startedAt: 'desc' }
+          ]
+        })
+      ]);
+
+      const stats = {
+        totalStoriesStarted: totalStarted,
+        totalStoriesCompleted: totalCompleted,
+        completionRate: totalStarted > 0 ? (totalCompleted / totalStarted) * 100 : 0,
+        totalRatings,
+        averageRating: averageRating._avg.rating || 0,
+        recentProgress
+      };
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch user statistics'
+        }
+      });
+    }
+  },
+
+  // DELETE /api/users/account - Delete user account
+  deleteAccount: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      // Delete user and all related data (cascading deletes will handle the rest)
+      await prisma.user.delete({
+        where: { id: req.user.id }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: {
+          message: 'Account deleted successfully'
+        }
+      });
+    } catch (error) {
+      console.error('Error deleting user account:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to delete account'
+        }
+      });
+    }
+  }
+};

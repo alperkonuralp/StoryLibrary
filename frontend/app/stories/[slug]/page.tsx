@@ -1,0 +1,220 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { StoryReader } from '@/components/story/StoryReader';
+import { BookOpen, ArrowLeft, Heart, Share2, Bookmark } from 'lucide-react';
+import { useStory } from '@/hooks/useStories';
+import type { DisplayMode } from '@/types';
+export default function StoryPage() {
+  const params = useParams();
+  const slug = params?.slug as string;
+  const [readingMode, setReadingMode] = useState<DisplayMode>('bilingual');
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [currentProgress, setCurrentProgress] = useState(0);
+
+  // Fetch story from API using slug
+  const { story, loading, error } = useStory({ slug, autoFetch: !!slug });
+
+  const handleModeChange = (mode: DisplayMode) => {
+    setReadingMode(mode);
+    // Save preference to localStorage
+    localStorage.setItem('preferredReadingMode', mode);
+  };
+
+  const handleProgressUpdate = (paragraph: number) => {
+    setCurrentProgress(paragraph);
+    // In a real app, you would save progress to the backend
+  };
+
+  const handleComplete = () => {
+    // Mark story as completed
+    console.log('Story completed!');
+    // In a real app, you would send completion status to backend
+  };
+
+  const handleBookmark = () => {
+    setIsBookmarked(!isBookmarked);
+    // In a real app, you would save bookmark to backend
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: story.title.en,
+        text: story.shortDescription.en,
+        url: window.location.href,
+      });
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(window.location.href);
+      // Show toast notification
+      alert('Link copied to clipboard!');
+    }
+  };
+
+  // Load reading mode preference
+  useEffect(() => {
+    const savedMode = localStorage.getItem('preferredReadingMode') as DisplayMode;
+    if (savedMode) {
+      setReadingMode(savedMode);
+    }
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        {/* Header */}
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container flex h-14 items-center">
+            <div className="mr-4 flex">
+              <Link className="mr-6 flex items-center space-x-2" href="/">
+                <BookOpen className="h-6 w-6" />
+                <span className="font-bold">Story Library</span>
+              </Link>
+            </div>
+          </div>
+        </header>
+        
+        {/* Loading State */}
+        <div className="container py-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-2/3 mb-8"></div>
+            <div className="space-y-4">
+              <div className="h-4 bg-gray-200 rounded"></div>
+              <div className="h-4 bg-gray-200 rounded"></div>
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || (!loading && !story)) {
+    return (
+      <div className="min-h-screen">
+        {/* Header */}
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container flex h-14 items-center">
+            <div className="mr-4 flex">
+              <Link className="mr-6 flex items-center space-x-2" href="/">
+                <BookOpen className="h-6 w-6" />
+                <span className="font-bold">Story Library</span>
+              </Link>
+            </div>
+          </div>
+        </header>
+        
+        {/* Not Found / Error */}
+        <div className="container py-16">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              {error ? 'Error Loading Story' : 'Story Not Found'}
+            </h1>
+            <p className="text-gray-600 mb-8">
+              {error || 'The story you\'re looking for doesn\'t exist or has been removed.'}
+            </p>
+            <Button asChild>
+              <Link href="/stories">Back to Stories</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-14 items-center">
+          <div className="mr-4 flex">
+            <Link className="mr-6 flex items-center space-x-2" href="/">
+              <BookOpen className="h-6 w-6" />
+              <span className="font-bold">Story Library</span>
+            </Link>
+          </div>
+          <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+            <nav className="flex items-center space-x-6 text-sm font-medium">
+              <Link href="/stories">Stories</Link>
+              <Link href="/authors">Authors</Link>
+              <Link href="/categories">Categories</Link>
+            </nav>
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/login">Login</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link href="/register">Sign Up</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Navigation */}
+      <div className="container py-4">
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/stories" className="flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Stories
+            </Link>
+          </Button>
+          
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBookmark}
+              className={`flex items-center gap-2 ${isBookmarked ? 'text-red-600' : ''}`}
+            >
+              <Heart className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
+              {isBookmarked ? 'Bookmarked' : 'Bookmark'}
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleShare}
+              className="flex items-center gap-2"
+            >
+              <Share2 className="h-4 w-4" />
+              Share
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Story Content */}
+      <div className="container pb-8">
+        <StoryReader
+          story={story}
+          initialMode={readingMode}
+          onModeChange={handleModeChange}
+          showHeader={true}
+        />
+      </div>
+
+      {/* Progress indicator - fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg">
+        <div className="container">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>Reading Progress</span>
+            <span>{Math.round((currentProgress / (story.content.en?.length || 1)) * 100)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${(currentProgress / (story.content.en?.length || 1)) * 100}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
