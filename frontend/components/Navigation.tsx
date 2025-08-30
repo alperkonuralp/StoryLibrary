@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { BookOpen, User, LogOut, Settings, Shield } from 'lucide-react';
+import { BookOpen, User, LogOut, Settings, Shield, BarChart3, Bookmark } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Navigation() {
@@ -34,6 +34,7 @@ export default function Navigation() {
             <Link href="/stories">Stories</Link>
             <Link href="/authors">Authors</Link>
             <Link href="/categories">Categories</Link>
+            <Link href="/progress">Progress</Link>
           </nav>
           <div className="flex items-center space-x-2">
             {isLoading ? (
@@ -41,7 +42,7 @@ export default function Navigation() {
                 <div className="h-8 w-16 bg-gray-200 rounded animate-pulse" />
                 <div className="h-8 w-20 bg-gray-200 rounded animate-pulse" />
               </div>
-            ) : isAuthenticated && user ? (
+            ) : user ? (
               <>
                 {user.role === 'ADMIN' && (
                   <Button variant="ghost" size="sm" asChild>
@@ -70,6 +71,18 @@ export default function Navigation() {
                       <Link href="/profile">
                         <User className="mr-2 h-4 w-4" />
                         <span>Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/progress">
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        <span>Reading Progress</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/bookmarks">
+                        <Bookmark className="mr-2 h-4 w-4" />
+                        <span>My Bookmarks</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>

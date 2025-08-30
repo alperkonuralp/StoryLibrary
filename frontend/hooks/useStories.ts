@@ -46,9 +46,28 @@ export function useStories(options: UseStoriesOptions = {}): UseStoriesReturn {
 
   useEffect(() => {
     if (autoFetch) {
-      fetchStories();
+      // Clear existing stories immediately when filters change
+      setStories([]);
+      setPagination(null);
+      
+      // Add a small delay to prevent multiple rapid API calls
+      const timeoutId = setTimeout(() => {
+        fetchStories();
+      }, 50);
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [JSON.stringify(filters), autoFetch]);
+  }, [
+    filters?.search,
+    filters?.categoryId, 
+    filters?.authorId,
+    filters?.tagId,
+    filters?.language,
+    filters?.status,
+    filters?.page,
+    filters?.limit,
+    autoFetch
+  ]);
 
   return {
     stories,

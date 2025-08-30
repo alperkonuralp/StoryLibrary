@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +49,7 @@ interface StoryReaderProps {
   story: Story;
   initialMode?: DisplayMode;
   onModeChange?: (mode: DisplayMode) => void;
+  onProgressUpdate?: (paragraph: number) => void;
   showHeader?: boolean;
 }
 
@@ -56,10 +57,13 @@ export function StoryReader({
   story, 
   initialMode = 'bilingual', 
   onModeChange,
+  onProgressUpdate,
   showHeader = true
 }: StoryReaderProps) {
   const [mode, setMode] = useState<DisplayMode>(initialMode);
   const [visibleTranslations, setVisibleTranslations] = useState<Set<number>>(new Set());
+  const [currentParagraph, setCurrentParagraph] = useState(0);
+  const paragraphRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const handleModeChange = (newMode: DisplayMode) => {
     setMode(newMode);
@@ -78,6 +82,42 @@ export function StoryReader({
     setVisibleTranslations(newVisible);
   };
 
+  // Track reading progress with intersection observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const paragraphIndex = parseInt(entry.target.getAttribute('data-paragraph') || '0');
+            if (paragraphIndex > currentParagraph) {
+              setCurrentParagraph(paragraphIndex);
+              onProgressUpdate?.(paragraphIndex + 1); // +1 because we want 1-based indexing
+            }
+          }
+        });
+      },
+      {
+        threshold: 0.5, // Trigger when 50% of paragraph is visible
+        rootMargin: '-100px 0px -100px 0px' // Only track paragraphs in the middle of viewport
+      }
+    );
+
+    paragraphRefs.current.forEach((ref) => {
+      if (ref) observer.observe(ref);
+    });
+
+    return () => observer.disconnect();
+  }, [currentParagraph, onProgressUpdate]);
+
+  // Initialize paragraph refs array
+  useEffect(() => {
+    const maxParagraphs = Math.max(
+      story.content.en?.length || 0,
+      story.content.tr?.length || 0
+    );
+    paragraphRefs.current = Array(maxParagraphs).fill(null);
+  }, [story.content]);
+
   const getDisplayLanguage = () => {
     return mode === 'turkish' ? 'tr' : 'en';
   };
@@ -89,7 +129,12 @@ export function StoryReader({
     switch (mode) {
       case 'english':
         return (
-          <div key={index} className="mb-4 p-4 bg-slate-50 rounded-lg">
+          <div 
+            key={index} 
+            ref={el => paragraphRefs.current[index] = el}
+            data-paragraph={index}
+            className="mb-4 p-4 bg-slate-50 rounded-lg"
+          >
             <p className="text-gray-900 leading-relaxed">{enParagraph}</p>
             {trParagraph && (
               <div className="mt-2">
@@ -111,7 +156,12 @@ export function StoryReader({
 
       case 'turkish':
         return (
-          <div key={index} className="mb-4 p-4 bg-slate-50 rounded-lg">
+          <div 
+            key={index} 
+            ref={el => paragraphRefs.current[index] = el}
+            data-paragraph={index}
+            className="mb-4 p-4 bg-slate-50 rounded-lg"
+          >
             <p className="text-gray-900 leading-relaxed">{trParagraph}</p>
             {enParagraph && (
               <div className="mt-2">
@@ -133,7 +183,12 @@ export function StoryReader({
 
       case 'bilingual':
         return (
-          <div key={index} className="mb-6 p-4 bg-slate-50 rounded-lg">
+          <div 
+            key={index} 
+            ref={el => paragraphRefs.current[index] = el}
+            data-paragraph={index}
+            className="mb-6 p-4 bg-slate-50 rounded-lg"
+          >
             {enParagraph && (
               <p className="text-gray-900 leading-relaxed mb-3">{enParagraph}</p>
             )}
@@ -200,7 +255,7 @@ export function StoryReader({
                 {story.averageRating && story.ratingCount && story.ratingCount > 0 && (
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span>{story.averageRating.toFixed(1)} ({story.ratingCount})</span>
+                    <span>{Number(story.averageRating).toFixed(1)} ({story.ratingCount})</span>
                   </div>
                 )}
               </div>

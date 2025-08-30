@@ -6,13 +6,18 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { BookOpen, Users, FolderOpen, Tag, BarChart3, Plus, Settings, Edit, Trash2, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStories } from '@/hooks/useStories';
 import { useCategories } from '@/hooks/useCategories';
+import { useTags } from '@/hooks/useTags';
 import { useUsers } from '@/hooks/useUsers';
 import Navigation from '@/components/Navigation';
 import { EditUserDialog } from '@/components/admin/EditUserDialog';
+import { EditCategoryDialog } from '@/components/admin/EditCategoryDialog';
+import { EditTagDialog } from '@/components/admin/EditTagDialog';
 import { apiClient } from '@/lib/api';
 
 // Mock statistics - in a real app these would come from API
@@ -28,17 +33,30 @@ const mockStats = {
 };
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'stories' | 'users' | 'categories' | 'tags'>('overview');
   const [editingUser, setEditingUser] = useState(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [deletingStory, setDeletingStory] = useState<string | null>(null);
+  const [publishingStory, setPublishingStory] = useState<string | null>(null);
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
+  const [userSearch, setUserSearch] = useState('');
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
+  const [editingTag, setEditingTag] = useState(null);
+  const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
+  const [deletingTag, setDeletingTag] = useState<string | null>(null);
+  const [selectedStories, setSelectedStories] = useState<string[]>([]);
+  const [bulkOperationInProgress, setBulkOperationInProgress] = useState(false);
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   
   // Fetch real data for admin dashboard
-  const { stories, loading: storiesLoading } = useStories({ 
+  const { stories, loading: storiesLoading, refetch: refetchStories } = useStories({ 
     filters: { status: undefined, limit: 100 } // Get all stories regardless of status
   });
-  const { categories, loading: categoriesLoading } = useCategories();
+  const { categories, loading: categoriesLoading, refetch: refetchCategories } = useCategories();
+  const { tags, loading: tagsLoading, refetch: refetchTags } = useTags();
   const { users, loading: usersLoading, refetch: refetchUsers } = useUsers();
 
   const handleEditUser = (user: any) => {
@@ -54,6 +72,362 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error('Error updating user:', error);
+    }
+  };
+
+  const handleDeleteStory = async (storyId: string) => {
+    if (!confirm('Are you sure you want to delete this story? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setDeletingStory(storyId);
+      const response = await apiClient.deleteStory(storyId);
+      
+      if (response.success) {
+        alert('Story deleted successfully!');
+        refetchStories();
+      } else {
+        throw new Error(response.error?.message || 'Failed to delete story');
+      }
+    } catch (error: any) {
+      console.error('Error deleting story:', error);
+      alert('Failed to delete story: ' + error.message);
+    } finally {
+      setDeletingStory(null);
+    }
+  };
+
+  const handleTogglePublish = async (storyId: string, currentStatus: 'DRAFT' | 'PUBLISHED') => {
+    const action = currentStatus === 'PUBLISHED' ? 'unpublish' : 'publish';
+    
+    if (!confirm(`Are you sure you want to ${action} this story?`)) {
+      return;
+    }
+
+    try {
+      setPublishingStory(storyId);
+      const response = currentStatus === 'PUBLISHED' 
+        ? await apiClient.unpublishStory(storyId)
+        : await apiClient.publishStory(storyId);
+      
+      if (response.success) {
+        alert(`Story ${action}ed successfully!`);
+        refetchStories();
+      } else {
+        throw new Error(response.error?.message || `Failed to ${action} story`);
+      }
+    } catch (error: any) {
+      console.error(`Error ${action}ing story:`, error);
+      alert(`Failed to ${action} story: ` + error.message);
+    } finally {
+      setPublishingStory(null);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    if (!confirm(`Are you sure you want to delete user "${userEmail}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeletingUser(userId);
+      // Using the admin API endpoint for user deletion
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        alert('User deleted successfully!');
+        refetchUsers();
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete user');
+      }
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user: ' + error.message);
+    } finally {
+      setDeletingUser(null);
+    }
+  };
+
+  // Filter users based on search
+  const filteredUsers = users?.filter(user => 
+    user.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+    user.username?.toLowerCase().includes(userSearch.toLowerCase()) ||
+    user.role.toLowerCase().includes(userSearch.toLowerCase())
+  ) || [];
+
+  // Category management functions
+  const handleEditCategory = (category: any) => {
+    setEditingCategory(category);
+    setIsCategoryDialogOpen(true);
+  };
+
+  const handleCreateCategory = () => {
+    setEditingCategory(null);
+    setIsCategoryDialogOpen(true);
+  };
+
+  const handleSaveCategory = async (categoryData: any) => {
+    try {
+      if (editingCategory) {
+        await apiClient.updateCategory(editingCategory.id, categoryData);
+        alert('Category updated successfully!');
+      } else {
+        await apiClient.createCategory(categoryData);
+        alert('Category created successfully!');
+      }
+      refetchCategories();
+      setIsCategoryDialogOpen(false);
+    } catch (error: any) {
+      console.error('Error saving category:', error);
+      alert('Failed to save category: ' + error.message);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
+    if (!confirm(`Are you sure you want to delete category "${categoryName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeletingCategory(categoryId);
+      const response = await apiClient.deleteCategory(categoryId);
+      
+      if (response.success) {
+        alert('Category deleted successfully!');
+        refetchCategories();
+      } else {
+        throw new Error(response.error?.message || 'Failed to delete category');
+      }
+    } catch (error: any) {
+      console.error('Error deleting category:', error);
+      alert('Failed to delete category: ' + error.message);
+    } finally {
+      setDeletingCategory(null);
+    }
+  };
+
+  // Tag management functions
+  const handleEditTag = (tag: any) => {
+    setEditingTag(tag);
+    setIsTagDialogOpen(true);
+  };
+
+  const handleCreateTag = () => {
+    setEditingTag(null);
+    setIsTagDialogOpen(true);
+  };
+
+  const handleSaveTag = async (tagData: any) => {
+    try {
+      if (editingTag) {
+        await apiClient.updateTag(editingTag.id, tagData);
+        alert('Tag updated successfully!');
+      } else {
+        await apiClient.createTag(tagData);
+        alert('Tag created successfully!');
+      }
+      refetchTags();
+      setIsTagDialogOpen(false);
+    } catch (error: any) {
+      console.error('Error saving tag:', error);
+      alert('Failed to save tag: ' + error.message);
+    }
+  };
+
+  const handleDeleteTag = async (tagId: string, tagName: string) => {
+    if (!confirm(`Are you sure you want to delete tag "${tagName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeletingTag(tagId);
+      const response = await apiClient.deleteTag(tagId);
+      
+      if (response.success) {
+        alert('Tag deleted successfully!');
+        refetchTags();
+      } else {
+        throw new Error(response.error?.message || 'Failed to delete tag');
+      }
+    } catch (error: any) {
+      console.error('Error deleting tag:', error);
+      alert('Failed to delete tag: ' + error.message);
+    } finally {
+      setDeletingTag(null);
+    }
+  };
+
+  // Bulk story operations
+  const handleSelectStory = (storyId: string) => {
+    setSelectedStories(prev => 
+      prev.includes(storyId) 
+        ? prev.filter(id => id !== storyId)
+        : [...prev, storyId]
+    );
+  };
+
+  const handleSelectAllStories = () => {
+    if (selectedStories.length === stories?.length) {
+      setSelectedStories([]);
+    } else {
+      setSelectedStories(stories?.map(story => story.id) || []);
+    }
+  };
+
+  const handleBulkPublish = async () => {
+    if (selectedStories.length === 0) return;
+    
+    const action = 'publish';
+    if (!confirm(`Are you sure you want to ${action} ${selectedStories.length} selected stories?`)) {
+      return;
+    }
+
+    setBulkOperationInProgress(true);
+    const results = { success: 0, failed: 0, errors: [] as string[] };
+
+    try {
+      for (const storyId of selectedStories) {
+        try {
+          const response = await apiClient.publishStory(storyId);
+          if (response.success) {
+            results.success++;
+          } else {
+            results.failed++;
+            results.errors.push(`Story ${storyId}: ${response.error?.message || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          results.failed++;
+          results.errors.push(`Story ${storyId}: ${error.message}`);
+        }
+      }
+
+      let message = `Bulk operation completed!\n`;
+      message += `✅ ${results.success} stories published successfully\n`;
+      if (results.failed > 0) {
+        message += `❌ ${results.failed} stories failed\n`;
+        if (results.errors.length > 0) {
+          message += `\nErrors:\n${results.errors.slice(0, 5).join('\n')}`;
+          if (results.errors.length > 5) {
+            message += `\n...and ${results.errors.length - 5} more errors`;
+          }
+        }
+      }
+
+      alert(message);
+      
+      if (results.success > 0) {
+        refetchStories();
+        setSelectedStories([]);
+      }
+    } finally {
+      setBulkOperationInProgress(false);
+    }
+  };
+
+  const handleBulkUnpublish = async () => {
+    if (selectedStories.length === 0) return;
+    
+    const action = 'unpublish';
+    if (!confirm(`Are you sure you want to ${action} ${selectedStories.length} selected stories?`)) {
+      return;
+    }
+
+    setBulkOperationInProgress(true);
+    const results = { success: 0, failed: 0, errors: [] as string[] };
+
+    try {
+      for (const storyId of selectedStories) {
+        try {
+          const response = await apiClient.unpublishStory(storyId);
+          if (response.success) {
+            results.success++;
+          } else {
+            results.failed++;
+            results.errors.push(`Story ${storyId}: ${response.error?.message || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          results.failed++;
+          results.errors.push(`Story ${storyId}: ${error.message}`);
+        }
+      }
+
+      let message = `Bulk operation completed!\n`;
+      message += `✅ ${results.success} stories unpublished successfully\n`;
+      if (results.failed > 0) {
+        message += `❌ ${results.failed} stories failed\n`;
+        if (results.errors.length > 0) {
+          message += `\nErrors:\n${results.errors.slice(0, 5).join('\n')}`;
+          if (results.errors.length > 5) {
+            message += `\n...and ${results.errors.length - 5} more errors`;
+          }
+        }
+      }
+
+      alert(message);
+      
+      if (results.success > 0) {
+        refetchStories();
+        setSelectedStories([]);
+      }
+    } finally {
+      setBulkOperationInProgress(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedStories.length === 0) return;
+    
+    if (!confirm(`⚠️ WARNING: This will permanently delete ${selectedStories.length} selected stories. This action cannot be undone!\n\nAre you absolutely sure you want to continue?`)) {
+      return;
+    }
+
+    setBulkOperationInProgress(true);
+    const results = { success: 0, failed: 0, errors: [] as string[] };
+
+    try {
+      for (const storyId of selectedStories) {
+        try {
+          const response = await apiClient.deleteStory(storyId);
+          if (response.success) {
+            results.success++;
+          } else {
+            results.failed++;
+            results.errors.push(`Story ${storyId}: ${response.error?.message || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          results.failed++;
+          results.errors.push(`Story ${storyId}: ${error.message}`);
+        }
+      }
+
+      let message = `Bulk deletion completed!\n`;
+      message += `✅ ${results.success} stories deleted successfully\n`;
+      if (results.failed > 0) {
+        message += `❌ ${results.failed} stories failed to delete\n`;
+        if (results.errors.length > 0) {
+          message += `\nErrors:\n${results.errors.slice(0, 5).join('\n')}`;
+          if (results.errors.length > 5) {
+            message += `\n...and ${results.errors.length - 5} more errors`;
+          }
+        }
+      }
+
+      alert(message);
+      
+      if (results.success > 0) {
+        refetchStories();
+        setSelectedStories([]);
+      }
+    } finally {
+      setBulkOperationInProgress(false);
     }
   };
 
@@ -262,9 +636,11 @@ export default function AdminDashboard() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Stories Management</CardTitle>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Story
+                  <Button asChild>
+                    <Link href="/admin/stories/new">
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Story
+                    </Link>
                   </Button>
                 </CardHeader>
                 <CardContent>
@@ -275,13 +651,74 @@ export default function AdminDashboard() {
                     </div>
                   ) : stories && stories.length > 0 ? (
                     <div className="space-y-4">
-                      <div className="text-sm text-gray-600 mb-4">
-                        Total: {stories.length} stories
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <div className="text-sm text-gray-600">
+                            Total: {stories.length} stories
+                          </div>
+                          {selectedStories.length > 0 && (
+                            <div className="text-sm font-medium text-blue-600">
+                              {selectedStories.length} selected
+                            </div>
+                          )}
+                        </div>
+                        {selectedStories.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleBulkPublish}
+                              disabled={bulkOperationInProgress}
+                            >
+                              📤 Publish Selected
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleBulkUnpublish}
+                              disabled={bulkOperationInProgress}
+                            >
+                              📝 Unpublish Selected
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={handleBulkDelete}
+                              disabled={bulkOperationInProgress}
+                            >
+                              🗑️ Delete Selected
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedStories([])}
+                              disabled={bulkOperationInProgress}
+                            >
+                              Clear Selection
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Checkbox
+                          checked={stories.length > 0 && selectedStories.length === stories.length}
+                          onClick={handleSelectAllStories}
+                          disabled={bulkOperationInProgress}
+                        />
+                        <label className="text-sm font-medium">
+                          Select All ({stories.length} stories)
+                        </label>
                       </div>
                       <div className="space-y-3">
                         {stories.map((story) => (
                           <div key={story.id} className="flex items-center justify-between p-4 border rounded-lg">
-                            <div className="flex-1">
+                            <div className="flex items-center gap-3 flex-1">
+                              <Checkbox
+                                checked={selectedStories.includes(story.id)}
+                                onClick={() => handleSelectStory(story.id)}
+                                disabled={bulkOperationInProgress}
+                              />
+                              <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h4 className="font-medium">
                                   {story.title?.en || story.title?.tr || 'Untitled'}
@@ -300,8 +737,9 @@ export default function AdminDashboard() {
                               </p>
                               <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                                 <span>By: {story.authors?.[0]?.author.name || 'Unknown'}</span>
-                                <span>Rating: {story.averageRating?.toFixed(1) || 'N/A'}</span>
+                                <span>Rating: {story.averageRating ? Number(story.averageRating).toFixed(1) : 'N/A'}</span>
                                 <span>Views: {story.viewCount || 0}</span>
+                              </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -310,10 +748,26 @@ export default function AdminDashboard() {
                                   <Eye className="h-4 w-4" />
                                 </Link>
                               </Button>
-                              <Button variant="ghost" size="sm">
-                                <Edit className="h-4 w-4" />
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link href={`/admin/stories/${story.id}/edit`}>
+                                  <Edit className="h-4 w-4" />
+                                </Link>
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleTogglePublish(story.id, story.status)}
+                                disabled={publishingStory === story.id}
+                                title={story.status === 'PUBLISHED' ? 'Unpublish story' : 'Publish story'}
+                              >
+                                {story.status === 'PUBLISHED' ? '📝' : '📤'}
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteStory(story.id)}
+                                disabled={deletingStory === story.id}
+                              >
                                 <Trash2 className="h-4 w-4 text-red-500" />
                               </Button>
                             </div>
@@ -342,7 +796,7 @@ export default function AdminDashboard() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Categories Management</CardTitle>
-                  <Button>
+                  <Button onClick={handleCreateCategory}>
                     <Plus className="h-4 w-4 mr-2" />
                     New Category
                   </Button>
@@ -373,10 +827,19 @@ export default function AdminDashboard() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditCategory(category)}
+                              >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteCategory(category.id, category.name.en || category.name.tr)}
+                                disabled={deletingCategory === category.id}
+                              >
                                 <Trash2 className="h-4 w-4 text-red-500" />
                               </Button>
                             </div>
@@ -401,6 +864,85 @@ export default function AdminDashboard() {
               </Card>
             )}
 
+            {activeTab === 'tags' && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Tags Management</CardTitle>
+                  <Button onClick={handleCreateTag}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Tag
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {tagsLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+                      <p>Loading tags...</p>
+                    </div>
+                  ) : tags && tags.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="text-sm text-gray-600 mb-4">
+                        Total: {tags.length} tags
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {tags.map((tag) => (
+                          <div key={tag.id} className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span
+                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
+                                  style={{ backgroundColor: tag.color || '#3b82f6' }}
+                                >
+                                  {tag.name?.en || tag.name?.tr || 'Untitled Tag'}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600">
+                                {tag.name?.en && tag.name?.tr && tag.name.en !== tag.name.tr
+                                  ? `EN: ${tag.name.en} / TR: ${tag.name.tr}`
+                                  : tag.name?.en || tag.name?.tr || 'No translation'}
+                              </p>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Slug: {tag.slug}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditTag(tag)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteTag(tag.id, tag.name.en || tag.name.tr)}
+                                disabled={deletingTag === tag.id}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Tag className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Tags Found</h3>
+                      <p className="text-gray-500 mb-4">
+                        Create tags to categorize and organize your stories.
+                      </p>
+                      <Button onClick={handleCreateTag}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create First Tag
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {activeTab === 'users' && (
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -410,14 +952,22 @@ export default function AdminDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  <div className="mb-4">
+                    <Input
+                      placeholder="Search users by email, username, or role..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
                   {usersLoading ? (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
                       <p>Loading users...</p>
                     </div>
-                  ) : users && users.length > 0 ? (
+                  ) : filteredUsers && filteredUsers.length > 0 ? (
                     <div className="space-y-3">
-                      {users.map((user) => (
+                      {filteredUsers.map((user) => (
                         <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
@@ -441,13 +991,26 @@ export default function AdminDashboard() {
                               <Edit className="h-4 w-4" />
                             </Button>
                             {user.role !== 'ADMIN' && (
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteUser(user.id, user.email)}
+                                disabled={deletingUser === user.id}
+                              >
                                 <Trash2 className="h-4 w-4 text-red-500" />
                               </Button>
                             )}
                           </div>
                         </div>
                       ))}
+                    </div>
+                  ) : userSearch && users && users.length > 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Users Match Search</h3>
+                      <p className="text-gray-500 mb-4">
+                        No users match "{userSearch}". Try a different search term.
+                      </p>
                     </div>
                   ) : (
                     <div className="text-center py-8">
@@ -533,6 +1096,22 @@ export default function AdminDashboard() {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         onSave={handleSaveUser}
+      />
+
+      {/* Edit Category Dialog */}
+      <EditCategoryDialog
+        category={editingCategory}
+        open={isCategoryDialogOpen}
+        onOpenChange={setIsCategoryDialogOpen}
+        onSave={handleSaveCategory}
+      />
+
+      {/* Edit Tag Dialog */}
+      <EditTagDialog
+        tag={editingTag}
+        open={isTagDialogOpen}
+        onOpenChange={setIsTagDialogOpen}
+        onSave={handleSaveTag}
       />
     </div>
   );

@@ -39,6 +39,7 @@ model User {
   stories       Story[]        @relation("StoryCreator")
   ratings       UserStoryRating[]
   progress      UserReadingProgress[]
+  bookmarks     UserBookmark[]
   
   @@index([email])
   @@index([username])
@@ -69,6 +70,7 @@ model Story {
   series            StorySeries[]
   ratings           UserStoryRating[]
   progress          UserReadingProgress[]
+  bookmarks         UserBookmark[]
   
   @@index([slug])
   @@index([status])
@@ -185,6 +187,20 @@ model UserReadingProgress {
   lastParagraph Int?
   startedAt     DateTime       @default(now())
   completedAt   DateTime?
+  
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story         Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, storyId])
+  @@index([userId])
+  @@index([storyId])
+}
+
+model UserBookmark {
+  id            String         @id @default(uuid())
+  userId        String
+  storyId       String
+  createdAt     DateTime       @default(now())
   
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   story         Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)

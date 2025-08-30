@@ -262,6 +262,62 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Reading Progress methods
+  async getProgress(storyId: string): Promise<ApiResponse<any>> {
+    return this.request<any>(`/progress/${storyId}`);
+  }
+
+  async updateProgress(data: {
+    storyId: string;
+    lastParagraph?: number;
+    status?: 'STARTED' | 'COMPLETED';
+  }): Promise<ApiResponse<any>> {
+    return this.request<any>('/progress', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getAllProgress(status?: 'STARTED' | 'COMPLETED'): Promise<ApiResponse<any[]>> {
+    const params = status ? `?status=${status}` : '';
+    return this.request<any[]>(`/progress${params}`);
+  }
+
+  async deleteProgress(storyId: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/progress/${storyId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Bookmark methods
+  async getBookmarks(): Promise<ApiResponse<any[]>> {
+    return this.request<any[]>('/bookmarks');
+  }
+
+  async addBookmark(storyId: string): Promise<ApiResponse<any>> {
+    return this.request<any>(`/bookmarks/${storyId}`, {
+      method: 'POST',
+    });
+  }
+
+  async removeBookmark(storyId: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/bookmarks/${storyId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async checkBookmark(storyId: string): Promise<ApiResponse<{ isBookmarked: boolean; bookmark: any | null }>> {
+    return this.request<{ isBookmarked: boolean; bookmark: any | null }>(`/bookmarks/${storyId}`);
+  }
+
+  // Admin methods
+
+  async deleteStoryAdmin(storyId: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/admin/stories/${storyId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const apiClient = new ApiClient();

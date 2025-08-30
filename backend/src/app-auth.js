@@ -292,7 +292,7 @@ app.get('/api/users', authenticateToken, async (req, res) => {
 // Get all published stories
 app.get('/api/stories', async (req, res) => {
   try {
-    const { page = '1', limit = '20', search, categoryId, language = 'en' } = req.query;
+    const { page = '1', limit = '20', search, categoryId, authorId, language = 'en' } = req.query;
     
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
@@ -323,6 +323,14 @@ app.get('/api/stories', async (req, res) => {
       where.categories = {
         some: {
           categoryId: categoryId,
+        },
+      };
+    }
+
+    if (authorId) {
+      where.authors = {
+        some: {
+          authorId: authorId,
         },
       };
     }
@@ -535,9 +543,14 @@ app.get('/api/authors', async (req, res) => {
       include: {
         stories: {
           select: {
-            id: true,
-            title: true,
-            status: true,
+            story: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                publishedAt: true,
+              },
+            },
           },
         },
         _count: {
@@ -588,6 +601,786 @@ app.get('/api/categories', async (req, res) => {
         code: 'INTERNAL_ERROR',
         message: 'Failed to fetch categories',
       },
+    });
+  }
+});
+
+// ===== READING PROGRESS ENDPOINTS =====
+
+// GET /api/progress/:storyId - Get reading progress for a specific story
+app.get('/api/progress/:storyId', authenticateToken, async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const userId = req.user.id;
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(storyId)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid story ID format',
+        },
+      });
+    }
+
+    const progress = await prisma.userReadingProgress.findUnique({
+      where: {
+        userId_storyId: {
+          userId,
+          storyId,
+        },
+      },
+      include: {
+        story: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: progress,
+    });
+  } catch (error) {
+    console.error('Error fetching reading progress:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to fetch reading progress',
+      },
+    });
+  }
+});
+
+// POST /api/progress - Update reading progress
+app.post('/api/progress', authenticateToken, async (req, res) => {
+  try {
+    const { storyId, lastParagraph, status } = req.body;
+    const userId = req.user.id;
+
+    // Basic validation
+    if (!storyId || typeof storyId !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Story ID is required',
+        },
+      });
+    }
+
+    if (status && !['STARTED', 'COMPLETED'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Status must be STARTED or COMPLETED',
+        },
+      });
+    }
+
+    // Check if story exists and is published
+    const story = await prisma.story.findUnique({
+      where: { id: storyId },
+      select: { id: true, status: true },
+    });
+
+    if (!story) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Story not found',
+        },
+      });
+    }
+
+    if (story.status !== 'PUBLISHED') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Cannot track progress for unpublished stories',
+        },
+      });
+    }
+
+    const updateData = {};
+    if (lastParagraph !== undefined) updateData.lastParagraph = parseInt(lastParagraph);
+    if (status !== undefined) {
+      updateData.status = status;
+      if (status === 'COMPLETED') {
+        updateData.completedAt = new Date();
+      }
+    }
+
+    const progress = await prisma.userReadingProgress.upsert({
+      where: {
+        userId_storyId: {
+          userId,
+          storyId,
+        },
+      },
+      update: updateData,
+      create: {
+        userId,
+        storyId,
+        status: status || 'STARTED',
+        lastParagraph: lastParagraph ? parseInt(lastParagraph) : 0,
+        ...(status === 'COMPLETED' && { completedAt: new Date() }),
+      },
+      include: {
+        story: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: progress,
+    });
+  } catch (error) {
+    console.error('Error updating reading progress:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to update reading progress',
+      },
+    });
+  }
+});
+
+// GET /api/progress - Get all reading progress for the user
+app.get('/api/progress', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { status } = req.query;
+
+    const whereClause = { userId };
+    if (status && (status === 'STARTED' || status === 'COMPLETED')) {
+      whereClause.status = status;
+    }
+
+    const progressList = await prisma.userReadingProgress.findMany({
+      where: whereClause,
+      include: {
+        story: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            shortDescription: true,
+            publishedAt: true,
+            averageRating: true,
+            ratingCount: true,
+          },
+        },
+      },
+      orderBy: [
+        { status: 'asc' }, // STARTED first, then COMPLETED
+        { startedAt: 'desc' }, // Most recent first
+      ],
+    });
+
+    res.json({
+      success: true,
+      data: progressList,
+      meta: {
+        total: progressList.length,
+        started: progressList.filter(p => p.status === 'STARTED').length,
+        completed: progressList.filter(p => p.status === 'COMPLETED').length,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching reading progress list:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to fetch reading progress',
+      },
+    });
+  }
+});
+
+// DELETE /api/progress/:storyId - Remove reading progress
+app.delete('/api/progress/:storyId', authenticateToken, async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const userId = req.user.id;
+
+    await prisma.userReadingProgress.delete({
+      where: {
+        userId_storyId: {
+          userId,
+          storyId,
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: { deleted: true },
+    });
+  } catch (error) {
+    console.error('Error deleting reading progress:', error);
+    
+    if (error.code === 'P2025') { // Prisma not found error
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Reading progress not found',
+        },
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to delete reading progress',
+      },
+    });
+  }
+});
+
+// ===== STORY RATING ENDPOINTS =====
+
+// POST /api/stories/:storyId/rating - Add or update story rating
+app.post('/api/stories/:storyId/rating', authenticateToken, async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const { rating } = req.body;
+    const userId = req.user.id;
+
+    // Validate rating
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Rating must be between 1 and 5',
+        },
+      });
+    }
+
+    // Check if story exists and is published
+    const story = await prisma.story.findUnique({
+      where: { id: storyId },
+      select: { id: true, status: true },
+    });
+
+    if (!story) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Story not found',
+        },
+      });
+    }
+
+    if (story.status !== 'PUBLISHED') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Cannot rate unpublished stories',
+        },
+      });
+    }
+
+    // Upsert rating
+    const userRating = await prisma.userStoryRating.upsert({
+      where: {
+        userId_storyId: {
+          userId,
+          storyId,
+        },
+      },
+      update: {
+        rating: parseFloat(rating),
+      },
+      create: {
+        userId,
+        storyId,
+        rating: parseFloat(rating),
+      },
+    });
+
+    // Recalculate story averages
+    const ratings = await prisma.userStoryRating.findMany({
+      where: { storyId },
+      select: { rating: true },
+    });
+
+    const averageRating = ratings.length > 0 
+      ? ratings.reduce((sum, r) => sum + Number(r.rating), 0) / ratings.length
+      : 0;
+
+    // Update story with new averages
+    await prisma.story.update({
+      where: { id: storyId },
+      data: {
+        averageRating: averageRating,
+        ratingCount: ratings.length,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ...userRating,
+        rating: Number(userRating.rating), // Convert Decimal to number
+        storyStats: {
+          averageRating: averageRating,
+          ratingCount: ratings.length,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Error adding/updating story rating:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to add/update rating',
+      },
+    });
+  }
+});
+
+// GET /api/stories/:storyId/rating - Get user's rating for a story
+app.get('/api/stories/:storyId/rating', authenticateToken, async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const userId = req.user.id;
+
+    const rating = await prisma.userStoryRating.findUnique({
+      where: {
+        userId_storyId: {
+          userId,
+          storyId,
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: rating ? {
+        ...rating,
+        rating: Number(rating.rating), // Convert Decimal to number
+      } : null,
+    });
+  } catch (error) {
+    console.error('Error fetching story rating:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to fetch rating',
+      },
+    });
+  }
+});
+
+// DELETE /api/stories/:storyId/rating - Remove user's rating
+app.delete('/api/stories/:storyId/rating', authenticateToken, async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const userId = req.user.id;
+
+    // Delete the rating
+    await prisma.userStoryRating.delete({
+      where: {
+        userId_storyId: {
+          userId,
+          storyId,
+        },
+      },
+    });
+
+    // Recalculate story averages
+    const ratings = await prisma.userStoryRating.findMany({
+      where: { storyId },
+      select: { rating: true },
+    });
+
+    const averageRating = ratings.length > 0 
+      ? ratings.reduce((sum, r) => sum + Number(r.rating), 0) / ratings.length
+      : 0;
+
+    // Update story with new averages
+    await prisma.story.update({
+      where: { id: storyId },
+      data: {
+        averageRating: averageRating,
+        ratingCount: ratings.length,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        deleted: true,
+        storyStats: {
+          averageRating: averageRating,
+          ratingCount: ratings.length,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Error deleting story rating:', error);
+    
+    if (error.code === 'P2025') { // Prisma not found error
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Rating not found',
+        },
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to delete rating',
+      },
+    });
+  }
+});
+
+// GET /api/bookmarks - Get all user bookmarks
+app.get('/api/bookmarks', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const bookmarks = await prisma.userBookmark.findMany({
+      where: { userId },
+      include: {
+        story: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            shortDescription: true,
+            publishedAt: true,
+            averageRating: true,
+            ratingCount: true,
+            statistics: true,
+            authors: {
+              select: {
+                author: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            categories: {
+              select: {
+                category: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      success: true,
+      data: bookmarks,
+    });
+  } catch (error) {
+    console.error('Error fetching bookmarks:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to fetch bookmarks',
+      },
+    });
+  }
+});
+
+// POST /api/bookmarks/:storyId - Add story to bookmarks
+app.post('/api/bookmarks/:storyId', authenticateToken, async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const userId = req.user.id;
+
+    // Check if story exists and is published
+    const story = await prisma.story.findUnique({
+      where: { id: storyId },
+      select: { id: true, status: true },
+    });
+
+    if (!story) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Story not found',
+        },
+      });
+    }
+
+    if (story.status !== 'PUBLISHED') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Cannot bookmark unpublished stories',
+        },
+      });
+    }
+
+    // Create bookmark (will fail if already exists due to unique constraint)
+    const bookmark = await prisma.userBookmark.create({
+      data: {
+        userId,
+        storyId,
+      },
+      include: {
+        story: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: bookmark,
+    });
+  } catch (error) {
+    console.error('Error creating bookmark:', error);
+    
+    if (error.code === 'P2002') { // Unique constraint violation
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'ALREADY_EXISTS',
+          message: 'Story is already bookmarked',
+        },
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to create bookmark',
+      },
+    });
+  }
+});
+
+// DELETE /api/bookmarks/:storyId - Remove story from bookmarks
+app.delete('/api/bookmarks/:storyId', authenticateToken, async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const userId = req.user.id;
+
+    await prisma.userBookmark.delete({
+      where: {
+        userId_storyId: {
+          userId,
+          storyId,
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: { deleted: true },
+    });
+  } catch (error) {
+    console.error('Error deleting bookmark:', error);
+    
+    if (error.code === 'P2025') { // Record not found
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Bookmark not found',
+        },
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to delete bookmark',
+      },
+    });
+  }
+});
+
+// GET /api/bookmarks/:storyId - Check if story is bookmarked
+app.get('/api/bookmarks/:storyId', authenticateToken, async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const userId = req.user.id;
+
+    const bookmark = await prisma.userBookmark.findUnique({
+      where: {
+        userId_storyId: {
+          userId,
+          storyId,
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        isBookmarked: !!bookmark,
+        bookmark: bookmark || null,
+      },
+    });
+  } catch (error) {
+    console.error('Error checking bookmark:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to check bookmark status',
+      },
+    });
+  }
+});
+
+// Admin-only: Publish/Unpublish story
+app.patch('/api/admin/stories/:id/publish', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Admin access required'
+        }
+      });
+    }
+
+    const { id } = req.params;
+    const story = await prisma.story.update({
+      where: { id },
+      data: { 
+        status: 'PUBLISHED',
+        publishedAt: new Date()
+      }
+    });
+
+    res.json({
+      success: true,
+      data: story
+    });
+  } catch (error) {
+    console.error('Error publishing story:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to publish story'
+      }
+    });
+  }
+});
+
+app.patch('/api/admin/stories/:id/unpublish', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Admin access required'
+        }
+      });
+    }
+
+    const { id } = req.params;
+    const story = await prisma.story.update({
+      where: { id },
+      data: { 
+        status: 'DRAFT',
+        publishedAt: null
+      }
+    });
+
+    res.json({
+      success: true,
+      data: story
+    });
+  } catch (error) {
+    console.error('Error unpublishing story:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to unpublish story'
+      }
+    });
+  }
+});
+
+// Admin-only: Delete story
+app.delete('/api/admin/stories/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Admin access required'
+        }
+      });
+    }
+
+    const { id } = req.params;
+    await prisma.story.delete({
+      where: { id }
+    });
+
+    res.json({
+      success: true,
+      data: { deleted: true }
+    });
+  } catch (error) {
+    console.error('Error deleting story:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to delete story'
+      }
     });
   }
 });

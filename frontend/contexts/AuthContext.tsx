@@ -39,6 +39,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Load user from localStorage on mount
   useEffect(() => {
     const savedToken = localStorage.getItem('authToken');
+    
     if (savedToken) {
       setToken(savedToken);
       apiClient.setAuthToken(savedToken);
@@ -55,7 +56,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setToken(null);
           }
         })
-        .catch(() => {
+        .catch((error) => {
           // Token is invalid, clear it
           localStorage.removeItem('authToken');
           apiClient.clearAuthToken();

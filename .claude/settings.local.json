@@ -14,7 +14,9 @@
       "Bash(timeout 30 npx prisma migrate dev --name initial)",
       "Bash(curl:*)",
       "Bash(npm run build:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npm test:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []

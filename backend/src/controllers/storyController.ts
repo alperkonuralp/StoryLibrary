@@ -4,7 +4,20 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { HTTP_STATUS } from '../utils/constants';
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient;
+
+// Allow dependency injection for testing
+const getPrismaClient = (): PrismaClient => {
+  if (!prisma) {
+    prisma = new PrismaClient();
+  }
+  return prisma;
+};
+
+// For testing - allow injecting a mock client
+export const setPrismaClient = (client: PrismaClient): void => {
+  prisma = client;
+};
 
 // Validation schemas
 const createStorySchema = z.object({
@@ -125,7 +138,7 @@ export const storyController = {
       }
 
       const [stories, total] = await Promise.all([
-        prisma.story.findMany({
+        getPrismaClient().story.findMany({
           where,
           include: {
             categories: {
@@ -166,19 +179,21 @@ export const storyController = {
             { createdAt: 'desc' }
           ]
         }),
-        prisma.story.count({ where })
+        getPrismaClient().story.count({ where })
       ]);
 
       const totalPages = Math.ceil(total / limit);
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
-        data: stories,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages
+        data: {
+          stories,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages
+          }
         }
       });
     } catch (error) {
@@ -198,7 +213,7 @@ export const storyController = {
     try {
       const { id } = req.params;
 
-      const story = await prisma.story.findUnique({
+      const story = await getPrismaClient().story.findUnique({
         where: { id },
         include: {
           categories: {
@@ -283,7 +298,7 @@ export const storyController = {
     try {
       const { slug } = req.params;
 
-      const story = await prisma.story.findUnique({
+      const story = await getPrismaClient().story.findUnique({
         where: { slug },
         include: {
           categories: {
@@ -379,7 +394,7 @@ export const storyController = {
         .trim();
 
       // Check if slug already exists
-      const existingStory = await prisma.story.findUnique({ where: { slug } });
+      const existingStory = await getPrismaClient().story.findUnique({ where: { slug } });
       if (existingStory) {
         return res.status(HTTP_STATUS.CONFLICT).json({
           success: false,
@@ -411,7 +426,7 @@ export const storyController = {
         statistics.sentenceCount[lang] = sentenceCount;
       }
 
-      const story = await prisma.story.create({
+      const story = await getPrismaClient().story.create({
         data: {
           title: validatedData.title,
           shortDescription: validatedData.shortDescription,
@@ -513,7 +528,7 @@ export const storyController = {
         });
       }
 
-      const existingStory = await prisma.story.findUnique({ where: { id } });
+      const existingStory = await getPrismaClient().story.findUnique({ where: { id } });
       if (!existingStory) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
@@ -550,7 +565,7 @@ export const storyController = {
           .trim();
 
         if (newSlug !== existingStory.slug) {
-          const slugExists = await prisma.story.findFirst({
+          const slugExists = await getPrismaClient().story.findFirst({
             where: { slug: newSlug, NOT: { id } }
           });
           if (slugExists) {
@@ -592,19 +607,19 @@ export const storyController = {
 
       // Delete existing relationships if updating
       if (categoryIds !== undefined) {
-        await prisma.storyCategory.deleteMany({ where: { storyId: id } });
+        await getPrismaClient().storyCategory.deleteMany({ where: { storyId: id } });
       }
       if (tagIds !== undefined) {
-        await prisma.storyTag.deleteMany({ where: { storyId: id } });
+        await getPrismaClient().storyTag.deleteMany({ where: { storyId: id } });
       }
       if (authorIds !== undefined) {
-        await prisma.storyAuthor.deleteMany({ where: { storyId: id } });
+        await getPrismaClient().storyAuthor.deleteMany({ where: { storyId: id } });
       }
       if (seriesId !== undefined) {
-        await prisma.storySeries.deleteMany({ where: { storyId: id } });
+        await getPrismaClient().storySeries.deleteMany({ where: { storyId: id } });
       }
 
-      const story = await prisma.story.update({
+      const story = await getPrismaClient().story.update({
         where: { id },
         data: {
           ...storyData,
@@ -697,7 +712,7 @@ export const storyController = {
         });
       }
 
-      const story = await prisma.story.findUnique({ where: { id } });
+      const story = await getPrismaClient().story.findUnique({ where: { id } });
       if (!story) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
@@ -708,7 +723,7 @@ export const storyController = {
         });
       }
 
-      await prisma.story.delete({ where: { id } });
+      await getPrismaClient().story.delete({ where: { id } });
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
@@ -743,7 +758,7 @@ export const storyController = {
         });
       }
 
-      const story = await prisma.story.findUnique({ where: { id } });
+      const story = await getPrismaClient().story.findUnique({ where: { id } });
       if (!story) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
@@ -775,7 +790,7 @@ export const storyController = {
         });
       }
 
-      const updatedStory = await prisma.story.update({
+      const updatedStory = await getPrismaClient().story.update({
         where: { id },
         data: {
           status: 'PUBLISHED',
@@ -843,7 +858,7 @@ export const storyController = {
         });
       }
 
-      const story = await prisma.story.findUnique({ where: { id } });
+      const story = await getPrismaClient().story.findUnique({ where: { id } });
       if (!story) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
@@ -875,7 +890,7 @@ export const storyController = {
         });
       }
 
-      const updatedStory = await prisma.story.update({
+      const updatedStory = await getPrismaClient().story.update({
         where: { id },
         data: {
           status: 'DRAFT',
@@ -945,7 +960,7 @@ export const storyController = {
 
       const { rating } = ratingSchema.parse(req.body);
 
-      const story = await prisma.story.findUnique({ where: { id } });
+      const story = await getPrismaClient().story.findUnique({ where: { id } });
       if (!story) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
@@ -967,7 +982,7 @@ export const storyController = {
       }
 
       // Upsert user rating
-      const userRating = await prisma.userStoryRating.upsert({
+      const userRating = await getPrismaClient().userStoryRating.upsert({
         where: {
           userId_storyId: {
             userId: req.user.id,
@@ -985,7 +1000,7 @@ export const storyController = {
       });
 
       // Recalculate average rating
-      const ratings = await prisma.userStoryRating.findMany({
+      const ratings = await getPrismaClient().userStoryRating.findMany({
         where: { storyId: id }
       });
 
@@ -993,7 +1008,7 @@ export const storyController = {
       const ratingCount = ratings.length;
 
       // Update story with new average
-      const updatedStory = await prisma.story.update({
+      const updatedStory = await getPrismaClient().story.update({
         where: { id },
         data: {
           averageRating,
@@ -1038,7 +1053,7 @@ export const storyController = {
       const { limit = 10 } = req.query;
       const limitNum = Math.min(Number(limit), 50);
 
-      const stories = await prisma.story.findMany({
+      const stories = await getPrismaClient().story.findMany({
         where: {
           status: 'PUBLISHED',
           averageRating: {
@@ -1106,7 +1121,7 @@ export const storyController = {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysNum);
 
-      const stories = await prisma.story.findMany({
+      const stories = await getPrismaClient().story.findMany({
         where: {
           status: 'PUBLISHED',
           publishedAt: {

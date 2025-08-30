@@ -5,18 +5,32 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { StoryReader } from '@/components/story/StoryReader';
+import { ProgressTracker } from '@/components/story/ProgressTracker';
+import { StoryRating } from '@/components/story/StoryRating';
 import { BookOpen, ArrowLeft, Heart, Share2, Bookmark } from 'lucide-react';
 import { useStory } from '@/hooks/useStories';
+import { useStoryBookmark } from '@/hooks/useBookmarks';
 import type { DisplayMode } from '@/types';
 export default function StoryPage() {
   const params = useParams();
   const slug = params?.slug as string;
   const [readingMode, setReadingMode] = useState<DisplayMode>('bilingual');
-  const [isBookmarked, setIsBookmarked] = useState(false);
   const [currentProgress, setCurrentProgress] = useState(0);
+  const [storyRating, setStoryRating] = useState({
+    average: 0,
+    count: 0,
+  });
 
   // Fetch story from API using slug
   const { story, loading, error } = useStory({ slug, autoFetch: !!slug });
+  
+  // Bookmark functionality
+  const {
+    isBookmarked,
+    loading: bookmarkLoading,
+    toggleBookmark,
+    error: bookmarkError,
+  } = useStoryBookmark(story?.id);
 
   const handleModeChange = (mode: DisplayMode) => {
     setReadingMode(mode);
@@ -26,18 +40,19 @@ export default function StoryPage() {
 
   const handleProgressUpdate = (paragraph: number) => {
     setCurrentProgress(paragraph);
-    // In a real app, you would save progress to the backend
   };
 
-  const handleComplete = () => {
-    // Mark story as completed
-    console.log('Story completed!');
-    // In a real app, you would send completion status to backend
+  const handleRatingUpdate = (newAverage: number, newCount: number) => {
+    setStoryRating({ average: newAverage, count: newCount });
   };
 
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
-    // In a real app, you would save bookmark to backend
+  const handleBookmark = async () => {
+    try {
+      await toggleBookmark();
+    } catch (err) {
+      console.error('Failed to toggle bookmark:', err);
+      // You could show a toast notification here
+    }
   };
 
   const handleShare = () => {
@@ -62,6 +77,16 @@ export default function StoryPage() {
       setReadingMode(savedMode);
     }
   }, []);
+
+  // Initialize rating data when story loads
+  useEffect(() => {
+    if (story) {
+      setStoryRating({
+        average: story.averageRating || 0,
+        count: story.ratingCount || 0,
+      });
+    }
+  }, [story]);
 
   if (loading) {
     return (
@@ -171,10 +196,11 @@ export default function StoryPage() {
               variant="ghost"
               size="sm"
               onClick={handleBookmark}
-              className={`flex items-center gap-2 ${isBookmarked ? 'text-red-600' : ''}`}
+              disabled={bookmarkLoading}
+              className={`flex items-center gap-2 ${isBookmarked ? 'text-blue-600' : ''}`}
             >
-              <Heart className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
-              {isBookmarked ? 'Bookmarked' : 'Bookmark'}
+              <Bookmark className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
+              {bookmarkLoading ? 'Loading...' : isBookmarked ? 'Bookmarked' : 'Bookmark'}
             </Button>
             
             <Button
@@ -192,12 +218,35 @@ export default function StoryPage() {
 
       {/* Story Content */}
       <div className="container pb-8">
-        <StoryReader
-          story={story}
-          initialMode={readingMode}
-          onModeChange={handleModeChange}
-          showHeader={true}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Main Story Reader */}
+          <div className="lg:col-span-3">
+            <StoryReader
+              story={story}
+              initialMode={readingMode}
+              onModeChange={handleModeChange}
+              showHeader={true}
+              onProgressUpdate={handleProgressUpdate}
+            />
+          </div>
+
+          {/* Sidebar with Progress and Rating */}
+          <div className="lg:col-span-1 space-y-4">
+            <ProgressTracker
+              storyId={story.id}
+              totalParagraphs={story.content?.en?.length || 0}
+              currentParagraph={currentProgress}
+              onProgressUpdate={handleProgressUpdate}
+            />
+            
+            <StoryRating
+              storyId={story.id}
+              averageRating={storyRating.average}
+              ratingCount={storyRating.count}
+              onRatingUpdate={handleRatingUpdate}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Progress indicator - fixed at bottom */}
