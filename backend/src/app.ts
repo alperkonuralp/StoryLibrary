@@ -20,7 +20,7 @@ import authorRoutes from './routes/authorRoutes';
 import seriesRoutes from './routes/seriesRoutes';
 import progressRoutes from './routes/progress';
 import bookmarkRoutes from './routes/bookmarks';
-import analyticsRoutes from './routes/analytics';
+import analyticsRoutes from './routes/analyticsRoutes';
 
 // Load environment variables
 dotenv.config();

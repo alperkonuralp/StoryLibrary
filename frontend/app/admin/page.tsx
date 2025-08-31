@@ -15,27 +15,19 @@ import { useCategories } from '@/hooks/useCategories';
 import { useTags } from '@/hooks/useTags';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuthors } from '@/hooks/useAuthors';
+import { useSeries } from '@/hooks/useSeries';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import Navigation from '@/components/Navigation';
 import { EditUserDialog } from '@/components/admin/EditUserDialog';
 import { EditCategoryDialog } from '@/components/admin/EditCategoryDialog';
 import { EditTagDialog } from '@/components/admin/EditTagDialog';
 import { EditAuthorDialog } from '@/components/admin/EditAuthorDialog';
+import { EditSeriesDialog } from '@/components/admin/EditSeriesDialog';
 import { apiClient } from '@/lib/api';
 
-// Mock statistics - in a real app these would come from API
-const mockStats = {
-  totalStories: 3,
-  publishedStories: 3,
-  draftStories: 0,
-  totalUsers: 150,
-  totalAuthors: 2,
-  totalCategories: 5,
-  totalViews: 1250,
-  averageRating: 4.4
-};
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'stories' | 'users' | 'categories' | 'authors' | 'tags'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'stories' | 'users' | 'categories' | 'authors' | 'series' | 'tags'>('overview');
   const [editingUser, setEditingUser] = useState(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deletingStory, setDeletingStory] = useState<string | null>(null);
@@ -51,6 +43,9 @@ export default function AdminDashboard() {
   const [editingAuthor, setEditingAuthor] = useState(null);
   const [isAuthorDialogOpen, setIsAuthorDialogOpen] = useState(false);
   const [deletingAuthor, setDeletingAuthor] = useState<string | null>(null);
+  const [editingSeries, setEditingSeries] = useState(null);
+  const [isSeriesDialogOpen, setIsSeriesDialogOpen] = useState(false);
+  const [deletingSeries, setDeletingSeries] = useState<string | null>(null);
   const [selectedStories, setSelectedStories] = useState<string[]>([]);
   const [bulkOperationInProgress, setBulkOperationInProgress] = useState(false);
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -64,6 +59,8 @@ export default function AdminDashboard() {
   const { tags, loading: tagsLoading, refetch: refetchTags } = useTags();
   const { users, loading: usersLoading, refetch: refetchUsers } = useUsers();
   const { authors, loading: authorsLoading, refetch: refetchAuthors } = useAuthors();
+  const { series, loading: seriesLoading, refetch: refetchSeries } = useSeries();
+  const { analytics, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics();
 
   const handleEditUser = (user: any) => {
     setEditingUser(user);
@@ -319,6 +316,57 @@ export default function AdminDashboard() {
       alert('Failed to delete author: ' + error.message);
     } finally {
       setDeletingAuthor(null);
+    }
+  };
+
+  // Series management functions
+  const handleEditSeries = (series: any) => {
+    setEditingSeries(series);
+    setIsSeriesDialogOpen(true);
+  };
+
+  const handleCreateSeries = () => {
+    setEditingSeries(null);
+    setIsSeriesDialogOpen(true);
+  };
+
+  const handleSaveSeries = async (seriesData: any) => {
+    try {
+      if (editingSeries) {
+        await apiClient.updateSeries(editingSeries.id, seriesData);
+        alert('Series updated successfully!');
+      } else {
+        await apiClient.createSeries(seriesData);
+        alert('Series created successfully!');
+      }
+      refetchSeries();
+      setIsSeriesDialogOpen(false);
+    } catch (error: any) {
+      console.error('Error saving series:', error);
+      alert('Failed to save series: ' + error.message);
+    }
+  };
+
+  const handleDeleteSeries = async (seriesId: string, seriesName: string) => {
+    if (!confirm(`Are you sure you want to delete series "${seriesName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeletingSeries(seriesId);
+      const response = await apiClient.deleteSeries(seriesId);
+      
+      if (response.success) {
+        alert('Series deleted successfully!');
+        refetchSeries();
+      } else {
+        throw new Error(response.error?.message || 'Failed to delete series');
+      }
+    } catch (error: any) {
+      console.error('Error deleting series:', error);
+      alert('Failed to delete series: ' + error.message);
+    } finally {
+      setDeletingSeries(null);
     }
   };
 
@@ -594,6 +642,14 @@ export default function AdminDashboard() {
                   Authors
                 </Button>
                 <Button
+                  variant={activeTab === 'series' ? 'default' : 'ghost'}
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab('series')}
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Series
+                </Button>
+                <Button
                   variant={activeTab === 'tags' ? 'default' : 'ghost'}
                   className="w-full justify-start"
                   onClick={() => setActiveTab('tags')}
@@ -617,9 +673,9 @@ export default function AdminDashboard() {
                       <BookOpen className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{stories?.length || 0}</div>
+                      <div className="text-2xl font-bold">{analytics?.overview.totalStories || 0}</div>
                       <p className="text-xs text-muted-foreground">
-                        {stories?.filter(s => s.status === 'PUBLISHED').length || 0} published, {stories?.filter(s => s.status === 'DRAFT').length || 0} drafts
+                        {analytics?.overview.publishedStories || 0} published, {analytics?.overview.draftStories || 0} drafts
                       </p>
                     </CardContent>
                   </Card>
@@ -630,22 +686,24 @@ export default function AdminDashboard() {
                       <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{users?.length || 0}</div>
+                      <div className="text-2xl font-bold">{analytics?.overview.totalUsers || 0}</div>
                       <p className="text-xs text-muted-foreground">
-                        Registered users
+                        {analytics?.overview.totalAuthors || 0} authors, {analytics?.userDistribution?.find(u => u.role === 'ADMIN')?.count || 0} admin
                       </p>
                     </CardContent>
                   </Card>
 
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Total Views</CardTitle>
+                      <CardTitle className="text-sm font-medium">Content Items</CardTitle>
                       <BarChart3 className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{mockStats.totalViews}</div>
+                      <div className="text-2xl font-bold">
+                        {(analytics?.overview.totalCategories || 0) + (analytics?.overview.totalSeries || 0) + (analytics?.overview.totalTags || 0)}
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        Story page views
+                        {analytics?.overview.totalCategories || 0} categories, {analytics?.overview.totalSeries || 0} series
                       </p>
                     </CardContent>
                   </Card>
@@ -656,10 +714,82 @@ export default function AdminDashboard() {
                       <BarChart3 className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{mockStats.averageRating}</div>
+                      <div className="text-2xl font-bold">{analytics?.overview.averageRating || '0.0'}</div>
                       <p className="text-xs text-muted-foreground">
-                        Out of 5 stars
+                        {analytics?.overview.totalRatings || 0} ratings total
                       </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Recent Activity & Analytics */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recent Activity</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {analyticsLoading ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2" />
+                          <p className="text-sm text-gray-500">Loading...</p>
+                        </div>
+                      ) : analytics?.recentActivity ? (
+                        <div className="space-y-3">
+                          {analytics.recentActivity.slice(0, 5).map((activity: any) => (
+                            <div key={activity.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">
+                                  {activity.title?.en || activity.title?.tr || 'Untitled'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  by {activity.creator} • {new Date(activity.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <Badge variant={activity.status === 'PUBLISHED' ? 'default' : 'secondary'}>
+                                {activity.status}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-sm">No recent activity</p>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Top Rated Stories</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {analyticsLoading ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2" />
+                          <p className="text-sm text-gray-500">Loading...</p>
+                        </div>
+                      ) : analytics?.topRated ? (
+                        <div className="space-y-3">
+                          {analytics.topRated.slice(0, 5).map((story: any) => (
+                            <div key={story.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">
+                                  {story.title?.en || story.title?.tr || 'Untitled'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {story.ratingCount} ratings
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-yellow-500">★</span>
+                                <span className="font-medium text-sm">{story.rating}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-sm">No rated stories</p>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -671,16 +801,18 @@ export default function AdminDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <Button className="h-20 flex flex-col space-y-2">
-                        <Plus className="h-6 w-6" />
-                        <span>Create New Story</span>
+                      <Button asChild className="h-16 flex flex-col space-y-2">
+                        <Link href="/admin/stories/new">
+                          <Plus className="h-5 w-5" />
+                          <span>Create New Story</span>
+                        </Link>
                       </Button>
-                      <Button variant="outline" className="h-20 flex flex-col space-y-2">
-                        <FolderOpen className="h-6 w-6" />
+                      <Button variant="outline" className="h-16 flex flex-col space-y-2" onClick={handleCreateCategory}>
+                        <FolderOpen className="h-5 w-5" />
                         <span>Add Category</span>
                       </Button>
-                      <Button variant="outline" className="h-20 flex flex-col space-y-2">
-                        <Users className="h-6 w-6" />
+                      <Button variant="outline" className="h-16 flex flex-col space-y-2" onClick={handleCreateAuthor}>
+                        <Users className="h-5 w-5" />
                         <span>Add Author</span>
                       </Button>
                     </div>
@@ -1176,6 +1308,88 @@ export default function AdminDashboard() {
               </Card>
             )}
 
+            {activeTab === 'series' && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Series Management</CardTitle>
+                  <Button onClick={handleCreateSeries}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Series
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {seriesLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+                      <p>Loading series...</p>
+                    </div>
+                  ) : series && series.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="text-sm text-gray-600 mb-4">
+                        Total: {series.length} series
+                      </div>
+                      <div className="grid grid-cols-1 gap-4">
+                        {series.map((seriesItem) => (
+                          <div key={seriesItem.id} className="flex items-start justify-between p-4 border rounded-lg">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div>
+                                  <h4 className="font-medium">
+                                    {seriesItem.name?.en || seriesItem.name?.tr || 'Untitled Series'}
+                                  </h4>
+                                  <p className="text-xs text-gray-500">@{seriesItem.slug}</p>
+                                </div>
+                                <Badge variant="outline">
+                                  {seriesItem._count?.stories || 0} stories
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-2">
+                                {seriesItem.description?.en || seriesItem.description?.tr || 'No description'}
+                              </p>
+                              {seriesItem.stories && seriesItem.stories.length > 0 && (
+                                <div className="text-xs text-gray-500">
+                                  Stories: {seriesItem.stories.map(s => s.story?.title?.en || s.story?.title?.tr).join(', ')}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditSeries(seriesItem)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteSeries(seriesItem.id, seriesItem.name.en || seriesItem.name.tr)}
+                                disabled={deletingSeries === seriesItem.id}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Series Found</h3>
+                      <p className="text-gray-500 mb-4">
+                        Create series to group related stories together for better organization.
+                      </p>
+                      <Button onClick={handleCreateSeries}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create First Series
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {activeTab === 'tags' && (
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -1249,6 +1463,14 @@ export default function AdminDashboard() {
         open={isAuthorDialogOpen}
         onOpenChange={setIsAuthorDialogOpen}
         onSave={handleSaveAuthor}
+      />
+
+      {/* Edit Series Dialog */}
+      <EditSeriesDialog
+        series={editingSeries}
+        open={isSeriesDialogOpen}
+        onOpenChange={setIsSeriesDialogOpen}
+        onSave={handleSaveSeries}
       />
     </div>
   );
