@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { BookOpen, User, LogOut, Settings, Shield, BarChart3, Bookmark } from 'lucide-react';
+import { BookOpen, User, LogOut, Settings, Shield, BarChart3, Bookmark, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Navigation() {
@@ -34,7 +34,7 @@ export default function Navigation() {
             <Link href="/stories">Stories</Link>
             <Link href="/authors">Authors</Link>
             <Link href="/categories">Categories</Link>
-            <Link href="/progress">Progress</Link>
+            {user && <Link href="/dashboard">Dashboard</Link>}
           </nav>
           <div className="flex items-center space-x-2">
             {isLoading ? (
@@ -74,9 +74,9 @@ export default function Navigation() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/progress">
-                        <BarChart3 className="mr-2 h-4 w-4" />
-                        <span>Reading Progress</span>
+                      <Link href="/dashboard">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        <span>Dashboard</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>

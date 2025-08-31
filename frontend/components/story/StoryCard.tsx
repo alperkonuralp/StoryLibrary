@@ -1,10 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Clock, User, Star, Languages } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { BookOpen, Clock, User, Star, Languages, Bookmark, BookmarkCheck, CheckCircle2 } from 'lucide-react';
+import { useStoryProgress } from '@/hooks/useProgress';
+import { useStoryBookmark } from '@/hooks/useBookmarks';
 
 interface Story {
   id: string;
@@ -49,6 +53,8 @@ interface StoryCardProps {
   showDescription?: boolean;
   showStats?: boolean;
   showTags?: boolean;
+  showProgress?: boolean;
+  showBookmark?: boolean;
   className?: string;
 }
 
@@ -58,11 +64,17 @@ export function StoryCard({
   showDescription = true,
   showStats = true,
   showTags = true,
+  showProgress = true,
+  showBookmark = true,
   className = ''
 }: StoryCardProps) {
   const title = story.title[language] || Object.values(story.title)[0] || 'Untitled';
   const description = story.shortDescription[language] || Object.values(story.shortDescription)[0] || '';
   
+  // Progress and bookmark hooks
+  const { progress, loading: progressLoading } = useStoryProgress(story.id);
+  const { isBookmarked, loading: bookmarkLoading, toggle: toggleBookmark } = useStoryBookmark(story.id);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
       year: 'numeric',
@@ -71,15 +83,60 @@ export function StoryCard({
     });
   };
 
+  const handleBookmarkToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await toggleBookmark();
+  };
+
   return (
     <Card className={`hover:shadow-lg transition-shadow duration-200 ${className}`}>
       <CardHeader className="pb-3">
         <div className="flex flex-col space-y-3">
-          <CardTitle className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors">
-            <Link href={`/stories/${story.slug}`}>
-              {title}
-            </Link>
-          </CardTitle>
+          <div className="flex items-start justify-between">
+            <CardTitle className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors flex-1 mr-2">
+              <Link href={`/stories/${story.slug}`}>
+                {title}
+              </Link>
+            </CardTitle>
+            
+            {/* Progress Status & Bookmark */}
+            <div className="flex items-center gap-2">
+              {showProgress && progress?.status === 'COMPLETED' && (
+                <div className="flex items-center text-green-600" title="Completed">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+              )}
+              
+              {showBookmark && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                  onClick={handleBookmarkToggle}
+                  disabled={bookmarkLoading}
+                  title={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+                >
+                  {isBookmarked ? (
+                    <BookmarkCheck className="w-4 h-4 text-blue-600" />
+                  ) : (
+                    <Bookmark className="w-4 h-4 text-gray-400 hover:text-blue-600" />
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          {showProgress && progress && progress.status !== 'COMPLETED' && progress.completionPercentage && progress.completionPercentage > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Progress</span>
+                <span>{Math.round(progress.completionPercentage)}%</span>
+              </div>
+              <Progress value={progress.completionPercentage} className="h-1.5" />
+            </div>
+          )}
           
           {showDescription && description && (
             <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
