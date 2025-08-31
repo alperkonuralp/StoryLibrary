@@ -6,7 +6,12 @@ import { generateRandomString } from '../utils/helpers';
 import logger from '../utils/logger';
 import type { JWTPayload, LoginCredentials, RegisterData } from '../types';
 
-const prisma = new PrismaClient();
+let prisma = new PrismaClient();
+
+// For testing dependency injection
+export const setPrismaClient = (client: PrismaClient): void => {
+  prisma = client;
+};
 
 // In-memory storage for refresh tokens (in production, use Redis)
 const refreshTokenStore = new Map<string, { userId: string; expiresAt: Date }>();

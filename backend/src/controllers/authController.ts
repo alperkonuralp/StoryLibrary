@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthService } from '../services/authService';
+import { AuthService, setPrismaClient } from '../services/authService';
 import { HTTP_STATUS, SUCCESS_MESSAGES } from '../utils/constants';
 import logger from '../utils/logger';
 import type { AuthenticatedRequest, ApiResponse } from '../types';
@@ -399,3 +399,6 @@ export class AuthController {
     }
   }
 }
+
+// Re-export setPrismaClient for testing
+export { setPrismaClient };

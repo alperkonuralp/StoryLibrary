@@ -5,7 +5,12 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { HTTP_STATUS } from '../utils/constants';
 
-const prisma = new PrismaClient();
+let prisma = new PrismaClient();
+
+// For testing dependency injection
+export const setPrismaClient = (client: PrismaClient): void => {
+  prisma = client;
+};
 
 // Validation schemas
 const updateProfileSchema = z.object({

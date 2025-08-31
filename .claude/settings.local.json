@@ -19,7 +19,9 @@
       "Bash(sed:*)",
       "Bash(git commit:*)",
       "Bash(git add:*)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "Bash(npx ts-node:*)",
+      "Bash(npm start)"
     ],
     "deny": [],
     "ask": []

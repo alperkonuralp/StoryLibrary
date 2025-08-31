@@ -4,7 +4,12 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { HTTP_STATUS } from '../utils/constants';
 
-const prisma = new PrismaClient();
+let prisma = new PrismaClient();
+
+// For testing dependency injection
+export const setPrismaClient = (client: PrismaClient): void => {
+  prisma = client;
+};
 
 // Validation schemas
 const createCategorySchema = z.object({
