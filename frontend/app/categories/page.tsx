@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpen, Search } from 'lucide-react';
 import { useCategories } from '@/hooks/useCategories';
+import Navigation from '@/components/Navigation';
 import type { Language } from '@/types';
 
 export default function CategoriesPage() {
@@ -26,32 +27,7 @@ export default function CategoriesPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <div className="mr-4 flex">
-            <Link className="mr-6 flex items-center space-x-2" href="/">
-              <BookOpen className="h-6 w-6" />
-              <span className="font-bold">Story Library</span>
-            </Link>
-          </div>
-          <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-            <nav className="flex items-center space-x-6 text-sm font-medium">
-              <Link href="/stories">Stories</Link>
-              <Link href="/authors">Authors</Link>
-              <Link href="/categories" className="text-foreground">Categories</Link>
-            </nav>
-            <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/login">Login</Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link href="/register">Sign Up</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navigation />
 
       {/* Page Header */}
       <section className="container space-y-6 py-8">

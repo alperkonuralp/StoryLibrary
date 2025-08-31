@@ -19,6 +19,7 @@ import {
   PlayCircle
 } from 'lucide-react';
 import Link from 'next/link';
+import Navigation from '@/components/Navigation';
 
 // Analytics data interface
 interface DashboardData {
@@ -161,7 +162,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen">
+      <Navigation />
+      
+      <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Reading Dashboard</h1>
         <p className="text-gray-600">Track your progress and discover new stories</p>
@@ -410,6 +414,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

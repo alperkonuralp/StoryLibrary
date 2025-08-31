@@ -158,10 +158,10 @@ export function StoryRating({
         {ratingCount > 0 && (
           <div className="flex items-center gap-3 pb-3 border-b">
             <div className="flex items-center gap-1">
-              {renderStars(averageRating)}
+              {renderStars(Number(averageRating))}
             </div>
             <div className="text-sm text-gray-600">
-              <span className="font-medium">{averageRating.toFixed(1)}</span>
+              <span className="font-medium">{Number(averageRating).toFixed(1)}</span>
               <span className="ml-1">({ratingCount} {ratingCount === 1 ? 'rating' : 'ratings'})</span>
             </div>
           </div>
