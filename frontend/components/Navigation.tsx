@@ -99,6 +99,14 @@ export default function Navigation() {
                         </Link>
                       </DropdownMenuItem>
                     )}
+                    {(user.role === 'EDITOR' || user.role === 'ADMIN') && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/editor">
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          <span>Editor Dashboard</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout}>
                       <LogOut className="mr-2 h-4 w-4" />
