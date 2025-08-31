@@ -39,6 +39,47 @@ Create a web-based platform where users can read stories in multiple languages (
 - Support scalable content management with categorization and tagging systems
 - Facilitate language learning through contextual story reading
 
+## Business Rules & Technical Specifications
+
+### Role-Based Permissions
+- **USER**: Can only read stories with `status: 'PUBLISHED'` and `deletedAt: null`
+- **EDITOR**: Has all USER permissions, plus:
+  - Can create new stories
+  - Can update their own stories
+  - Can change status (`DRAFT`, `PUBLISHED`) of their own stories
+  - Cannot modify stories created by other editors
+- **ADMIN**: Has all EDITOR permissions, plus:
+  - Can update and soft-delete any story (regardless of owner)
+  - Can manage soft-deleted content
+  - Full access to admin endpoints
+
+### Core Business Rules
+- **Story Requirements**: A story must belong to at least one category
+- **Statistics Calculation**: Executed on backend whenever a story is created or updated
+  - `wordCount` and `charCount` calculated for each language within story content
+  - `estimatedReadingTime` (in minutes) calculated using formula: `wordCount / 200`
+  - Results stored in `statistics` JSON field of `Story` table
+- **Rating Calculation**: When user submits rating via API, `averageRating` and `ratingCount` fields updated using formula:
+  - `newAverage = ((oldAverage * oldRatingCount) + newRating) / (oldRatingCount + 1)`
+
+### Soft Delete Implementation
+- **All delete operations must be soft deletes**
+- Story table includes `deletedAt` field (`null` for active records)
+- When story is deleted, field updated with current timestamp  
+- All standard data retrieval queries must include condition `WHERE deletedAt IS NULL`
+
+### Standard API Error Format
+All API errors returned in standard JSON format:
+```json
+{
+  "error": {
+    "message": "A user-friendly error message.",
+    "code": "ERROR_CODE_STRING", 
+    "statusCode": 4xx
+  }
+}
+```
+
 ## Architecture
 
 ### Backend (Port 3001)
@@ -105,20 +146,36 @@ story-library/
 ├── frontend/
 │   ├── app/
 │   │   ├── (auth)/
-│   │   │   ├── login/page.tsx
-│   │   │   └── register/page.tsx
+│   │   │   ├── login/page.tsx          # User login page
+│   │   │   └── register/page.tsx       # User registration page
 │   │   ├── (dashboard)/
 │   │   │   ├── editor/
+│   │   │   │   ├── create/page.tsx     # Create new stories (EDITOR, ADMIN)
+│   │   │   │   ├── my-stories/page.tsx # Editor story dashboard (EDITOR, ADMIN)  
+│   │   │   │   └── edit/[id]/page.tsx  # Edit existing story (EDITOR own, ADMIN any)
 │   │   │   └── admin/
+│   │   │       ├── stories/page.tsx    # Admin story management with soft-deleted (ADMIN)
+│   │   │       ├── categories/page.tsx # Admin category management (ADMIN)
+│   │   │       ├── authors/page.tsx    # Admin author management (ADMIN)
+│   │   │       ├── series/page.tsx     # Admin series management (ADMIN)
+│   │   │       └── tags/page.tsx       # Admin tag management (ADMIN)
 │   │   ├── stories/
-│   │   │   ├── [id]/page.tsx
-│   │   │   └── page.tsx
+│   │   │   ├── [slug]/page.tsx         # Story detail with language switching & rating
+│   │   │   └── page.tsx                # Stories listing with author/category links
 │   │   ├── categories/
+│   │   │   ├── [slug]/page.tsx         # Category detail with stories list
+│   │   │   └── page.tsx                # Categories index
 │   │   ├── authors/
-│   │   ├── about/
+│   │   │   ├── [slug]/page.tsx         # Author detail with stories list
+│   │   │   └── page.tsx                # Authors index
+│   │   ├── series/
+│   │   │   ├── [slug]/page.tsx         # Series detail with ordered stories
+│   │   │   └── page.tsx                # Series index
+│   │   ├── profile/page.tsx            # User profile management
+│   │   ├── about/page.tsx              # About Us page
 │   │   ├── api/auth/[...nextauth]/route.ts
-│   │   ├── layout.tsx
-│   │   └── page.tsx
+│   │   ├── layout.tsx                  # Main layout with navigation & dropdowns
+│   │   └── page.tsx                    # Home page with published stories
 │   ├── components/
 │   │   ├── ui/
 │   │   ├── story/
@@ -135,6 +192,9 @@ story-library/
 │   │   ├── authStore.ts
 │   │   └── storyStore.ts
 │   ├── hooks/
+│   │   └── useAuth.ts                   # Global auth state management
+│   ├── composables/                     # Vue-style composables for shared logic
+│   │   └── useAuth.ts                   # Auth composable with login/register/logout
 │   ├── types/
 │   ├── contexts/
 │   ├── .env.local
@@ -282,23 +342,26 @@ npx prisma studio
 ### Authentication Endpoints
 ```rest
 POST   /api/auth/register      # Register new user
-POST   /api/auth/login         # User login
+POST   /api/auth/login         # User login (sets httpOnly JWT cookie)
 POST   /api/auth/refresh       # Refresh tokens
-POST   /api/auth/logout        # User logout
-GET    /api/auth/me            # Get current user
+POST   /api/auth/logout        # User logout (clears JWT cookie)
+GET    /api/auth/me            # Get current user details (protected)
 POST   /api/auth/google        # Google OAuth
+GET    /api/auth/users/:userId/stories # Get stories by specific user (protected)
+PUT    /api/auth/me/profile    # Update authenticated user profile (protected)
 ```
 
 ### Story Endpoints
 ```rest
-GET    /api/stories            # Get all stories (with pagination, filters)
-GET    /api/stories/:id        # Get story by ID
-GET    /api/stories/slug/:slug # Get story by slug
-POST   /api/stories [Editor+]  # Create new story
-PUT    /api/stories/:id [Editor+] # Update story
-DELETE /api/stories/:id [Admin] # Delete story
+GET    /api/stories            # Get all published stories (with pagination, filters)
+GET    /api/stories/:id        # Get single story by ID
+GET    /api/stories/id/:id     # Get single story by ID (alternative)
+GET    /api/stories/slug/:slug # Get single published story by slug
+POST   /api/stories [Editor+]  # Create new story (protected: EDITOR, ADMIN)
+PUT    /api/stories/:id [Editor+] # Update story (protected: EDITOR own, ADMIN any)
+DELETE /api/stories/:id [Admin] # Soft delete story (protected: ADMIN only)
 POST   /api/stories/:id/publish [Editor+] # Publish story
-POST   /api/stories/:id/rate [Auth] # Rate story
+POST   /api/stories/:id/rate [Auth] # Submit/update story rating (protected)
 GET    /api/stories/top-rated  # Get top-rated stories
 GET    /api/stories/new        # Get recent stories
 ```
@@ -306,35 +369,49 @@ GET    /api/stories/new        # Get recent stories
 ### Category Endpoints
 ```rest
 GET    /api/categories         # Get all categories
-GET    /api/categories/:id     # Get category by ID
-POST   /api/categories [Admin] # Create category
-PUT    /api/categories/:id [Admin] # Update category
-DELETE /api/categories/:id [Admin] # Delete category
+GET    /api/categories/:id     # Get single category by ID
+GET    /api/categories/:slug/stories # Get stories by category slug
+POST   /api/categories [Admin] # Create category (protected: ADMIN)
+PUT    /api/categories/:id [Admin] # Update category (protected: ADMIN)
+DELETE /api/categories/:id [Admin] # Delete category (protected: ADMIN)
 ```
 
 ### Author Endpoints
 ```rest
 GET    /api/authors            # Get all authors
-GET    /api/authors/:id        # Get author by ID
+GET    /api/authors/:id        # Get single author by ID
 GET    /api/authors/slug/:slug # Get author by slug
-POST   /api/authors [Editor+]  # Create author
-PUT    /api/authors/:id [Editor+] # Update author
-DELETE /api/authors/:id [Admin] # Delete author
+GET    /api/authors/:slug/stories # Get stories by author slug
+POST   /api/authors [Admin]    # Create author (protected: ADMIN)
+PUT    /api/authors/:id [Admin] # Update author (protected: ADMIN)
+DELETE /api/authors/:id [Admin] # Delete author (protected: ADMIN)
 GET    /api/authors/:id/stories # Get author's stories
 ```
 
-### Tag & Series Endpoints
+### Tag Endpoints
 ```rest
 GET    /api/tags               # Get all tags
-POST   /api/tags [Editor+]     # Create tag
-PUT    /api/tags/:id [Editor+] # Update tag
-DELETE /api/tags/:id [Admin]   # Delete tag
+GET    /api/tags/:id           # Get single tag by ID
+POST   /api/tags [Admin]       # Create tag (protected: ADMIN)
+PUT    /api/tags/:id [Admin]   # Update tag (protected: ADMIN)
+DELETE /api/tags/:id [Admin]   # Delete tag (protected: ADMIN)
+```
 
+### Series Endpoints
+```rest
 GET    /api/series             # Get all series
-GET    /api/series/:id         # Get series by ID
-POST   /api/series [Editor+]   # Create series
-PUT    /api/series/:id [Editor+] # Update series
-DELETE /api/series/:id [Admin] # Delete series
+GET    /api/series/:id         # Get single series by ID
+GET    /api/series/:slug/stories # Get stories by series slug
+POST   /api/series [Admin]     # Create series (protected: ADMIN)
+PUT    /api/series/:id [Admin] # Update series (protected: ADMIN)
+DELETE /api/series/:id [Admin] # Delete series (protected: ADMIN)
+```
+
+### Admin-Specific Endpoints
+```rest
+GET    /api/admin/stories/deleted    # List all soft-deleted stories (protected: ADMIN)
+POST   /api/admin/stories/:id/restore # Restore soft-deleted story (protected: ADMIN)
+DELETE /api/admin/stories/:id/permanent # Permanently delete story (protected: ADMIN)
 ```
 
 ### User Progress Endpoints
@@ -364,6 +441,39 @@ Complete schema matches the analysis.md specifications with all tables:
 - `StorySeries`: Many-to-many stories ↔ series with ordering
 - `UserStoryRating`: User ratings for stories
 - `UserReadingProgress`: Reading progress tracking
+
+## Frontend Layout & Navigation
+
+### Main Layout Structure
+The main layout (`layout.tsx`) includes:
+
+**Header with Navigation:**
+- Site title and branding
+- **Admin Panel Dropdown** (visible to ADMIN only):
+  - Admin Dashboard
+  - Admin Categories  
+  - Admin Authors
+  - Admin Series
+  - Admin Tags
+- **Profile/User Menu Dropdown** (visible when logged in):
+  - Profile
+  - Create Story (EDITOR, ADMIN)
+  - My Stories (EDITOR, ADMIN) 
+  - Logout
+
+**Main Content Area:**
+- Dynamic page content slot
+- Responsive design for mobile/desktop
+
+**Footer:**
+- Standard footer information
+
+### Key Frontend Features
+- **Story Reading Interface**: Language switching between English/Turkish with paragraph-by-paragraph display
+- **Rating System**: Interactive rating component on story detail pages
+- **Metadata Links**: Clickable author, category, and series links throughout the interface
+- **Authentication States**: Different UI elements based on user role (USER/EDITOR/ADMIN)
+- **Responsive Design**: Mobile-friendly interface with proper breakpoints
 
 ## Development Workflow
 

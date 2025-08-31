@@ -1,7 +1,8 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { authenticateToken } from '../middleware/auth';
+import { authenticate } from '../middleware/authMiddleware';
+import type { AuthenticatedRequest } from '../types';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -10,6 +11,11 @@ const prisma = new PrismaClient();
 const updateProgressSchema = z.object({
   storyId: z.string().uuid(),
   lastParagraph: z.number().int().min(0).optional(),
+  totalParagraphs: z.number().int().min(1).optional(),
+  completionPercentage: z.number().min(0).max(100).optional(),
+  readingTimeSeconds: z.number().int().min(0).optional(),
+  wordsRead: z.number().int().min(0).optional(),
+  language: z.enum(['en', 'tr']).optional(),
   status: z.enum(['STARTED', 'COMPLETED']).optional(),
 });
 
@@ -18,7 +24,7 @@ const getProgressParamsSchema = z.object({
 });
 
 // GET /api/progress/:storyId - Get reading progress for a specific story
-router.get('/:storyId', authenticateToken, async (req, res) => {
+router.get('/:storyId', authenticate, async (req: AuthenticatedRequest, res) => {
   try {
     const { storyId } = getProgressParamsSchema.parse(req.params);
     const userId = req.user.id;
@@ -70,9 +76,18 @@ router.get('/:storyId', authenticateToken, async (req, res) => {
 });
 
 // POST/PUT /api/progress - Update reading progress
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticate, async (req: AuthenticatedRequest, res) => {
   try {
-    const { storyId, lastParagraph, status } = updateProgressSchema.parse(req.body);
+    const { 
+      storyId, 
+      lastParagraph, 
+      totalParagraphs,
+      completionPercentage,
+      readingTimeSeconds,
+      wordsRead,
+      language,
+      status 
+    } = updateProgressSchema.parse(req.body);
     const userId = req.user.id;
 
     // Check if story exists
@@ -101,12 +116,22 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
-    const updateData: any = {};
+    const updateData: any = {
+      lastReadAt: new Date(), // Always update last read time
+    };
+    
     if (lastParagraph !== undefined) updateData.lastParagraph = lastParagraph;
+    if (totalParagraphs !== undefined) updateData.totalParagraphs = totalParagraphs;
+    if (completionPercentage !== undefined) updateData.completionPercentage = completionPercentage;
+    if (readingTimeSeconds !== undefined) updateData.readingTimeSeconds = readingTimeSeconds;
+    if (wordsRead !== undefined) updateData.wordsRead = wordsRead;
+    if (language !== undefined) updateData.language = language;
+    
     if (status !== undefined) {
       updateData.status = status;
       if (status === 'COMPLETED') {
         updateData.completedAt = new Date();
+        updateData.completionPercentage = 100; // Auto-set to 100% when completed
       }
     }
 
@@ -123,6 +148,12 @@ router.post('/', authenticateToken, async (req, res) => {
         storyId,
         status: status || 'STARTED',
         lastParagraph: lastParagraph || 0,
+        totalParagraphs: totalParagraphs,
+        completionPercentage: completionPercentage || 0,
+        readingTimeSeconds: readingTimeSeconds || 0,
+        wordsRead: wordsRead || 0,
+        language: language,
+        lastReadAt: new Date(),
         ...(status === 'COMPLETED' && { completedAt: new Date() }),
       },
       include: {
@@ -165,7 +196,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // GET /api/progress - Get all reading progress for the user
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticate, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user.id;
     const { status } = req.query;
@@ -219,7 +250,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // DELETE /api/progress/:storyId - Remove reading progress
-router.delete('/:storyId', authenticateToken, async (req, res) => {
+router.delete('/:storyId', authenticate, async (req: AuthenticatedRequest, res) => {
   try {
     const { storyId } = getProgressParamsSchema.parse(req.params);
     const userId = req.user.id;

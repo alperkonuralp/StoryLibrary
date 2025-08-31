@@ -40,6 +40,7 @@ model User {
   ratings       UserStoryRating[]
   progress      UserReadingProgress[]
   bookmarks     UserBookmark[]
+  preferences   UserPreferences?
   
   @@index([email])
   @@index([username])
@@ -71,6 +72,7 @@ model Story {
   ratings           UserStoryRating[]
   progress          UserReadingProgress[]
   bookmarks         UserBookmark[]
+  analytics         StoryAnalytics?
   
   @@index([slug])
   @@index([status])
@@ -180,20 +182,28 @@ model UserStoryRating {
 }
 
 model UserReadingProgress {
-  id            String         @id @default(uuid())
-  userId        String
-  storyId       String
-  status        ReadingStatus
-  lastParagraph Int?
-  startedAt     DateTime       @default(now())
-  completedAt   DateTime?
+  id                    String         @id @default(uuid())
+  userId                String
+  storyId               String
+  status                ReadingStatus
+  lastParagraph         Int?
+  totalParagraphs       Int?           // Total paragraphs in story
+  completionPercentage  Decimal?       @db.Decimal(5, 2) // 0.00 to 100.00
+  readingTimeSeconds    Int?           // Total time spent reading in seconds
+  wordsRead             Int?           // Approximate words read
+  language              String?        // Which language was being read (en/tr)
+  startedAt             DateTime       @default(now())
+  completedAt           DateTime?
+  lastReadAt            DateTime?      // Last time user read this story
   
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  story         Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story                 Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
   
   @@unique([userId, storyId])
   @@index([userId])
   @@index([storyId])
+  @@index([status])
+  @@index([lastReadAt])
 }
 
 model UserBookmark {
@@ -208,4 +218,39 @@ model UserBookmark {
   @@unique([userId, storyId])
   @@index([userId])
   @@index([storyId])
+}
+
+model StoryAnalytics {
+  id                    String         @id @default(uuid())
+  storyId               String
+  viewsCount            Int            @default(0)
+  uniqueReadersCount    Int            @default(0)
+  completionRate        Decimal?       @db.Decimal(5, 2) // Percentage of users who complete
+  averageReadingTime    Int?           // Average reading time in seconds
+  averageRating         Decimal?       @db.Decimal(3, 2)
+  popularLanguage       String?        // Which language is read more (en/tr)
+  lastCalculated        DateTime       @default(now())
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  story                 Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  
+  @@unique([storyId])
+  @@index([viewsCount])
+  @@index([completionRate])
+}
+
+model UserPreferences {
+  id                    String         @id @default(uuid())
+  userId                String         @unique
+  readingMode           String         @default("bilingual") // "bilingual", "english", "turkish"
+  fontSize              String         @default("medium") // "small", "medium", "large"
+  theme                 String         @default("light") // "light", "dark"
+  languagePreference    String         @default("en") // "en", "tr"
+  autoSaveProgress      Boolean        @default(true)
+  emailNotifications    Boolean        @default(true)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
