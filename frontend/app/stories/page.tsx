@@ -20,6 +20,10 @@ export default function StoriesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedAuthor, setSelectedAuthor] = useState<string>('');
+  const [selectedTag, setSelectedTag] = useState<string>('');
+  const [minRating, setMinRating] = useState<number>(0);
+  const [sortBy, setSortBy] = useState<'createdAt' | 'updatedAt' | 'publishedAt' | 'title' | 'averageRating' | 'ratingCount'>('publishedAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Create filters object for API calls
   const filters = useMemo((): StoryFilters => {
@@ -27,13 +31,17 @@ export default function StoriesPage() {
       search: searchQuery || undefined,
       categoryId: selectedCategory || undefined,
       authorId: selectedAuthor || undefined,
+      tagId: selectedTag || undefined,
+      minRating: minRating > 0 ? minRating : undefined,
+      sortBy,
+      sortOrder,
       language: storyLanguage,
       status: 'PUBLISHED' as const,
       page: 1,
       limit: 20
     };
     return filterObj;
-  }, [searchQuery, selectedCategory, selectedAuthor, storyLanguage]);
+  }, [searchQuery, selectedCategory, selectedAuthor, selectedTag, minRating, sortBy, sortOrder, storyLanguage]);
 
   // Fetch stories from API
   const { stories, loading, error, pagination, refetch } = useStories({ filters });
@@ -123,20 +131,53 @@ export default function StoriesPage() {
           {/* Advanced Search Component */}
           <AdvancedSearch
             onSearch={(searchFilters) => {
-              setSearchQuery(searchFilters.search);
-              setSelectedCategory(searchFilters.categoryId);
-              setSelectedAuthor(searchFilters.authorId);
-              // Additional filters can be handled here
+              setSearchQuery(searchFilters.search || '');
+              setSelectedCategory(searchFilters.categoryId || '');
+              setSelectedAuthor(searchFilters.authorId || '');
+              setSelectedTag(searchFilters.tagId || '');
+              setMinRating(searchFilters.minRating || 0);
+              
+              // Map AdvancedSearch sort values to backend API values
+              const mapSortBy = (frontendSort: string) => {
+                switch (frontendSort) {
+                  case 'newest': return 'publishedAt';
+                  case 'oldest': return 'publishedAt';
+                  case 'rating': return 'averageRating';
+                  case 'title': return 'title';
+                  default: return 'publishedAt';
+                }
+              };
+              
+              const mapSortOrder = (frontendSort: string) => {
+                switch (frontendSort) {
+                  case 'newest': return 'desc';
+                  case 'oldest': return 'asc';
+                  case 'rating': return 'desc';
+                  case 'title': return 'asc';
+                  default: return 'desc';
+                }
+              };
+              
+              setSortBy(mapSortBy(searchFilters.sortBy || 'newest'));
+              setSortOrder(mapSortOrder(searchFilters.sortBy || 'newest'));
             }}
             onClear={() => {
               setSearchQuery('');
               setSelectedCategory('');
               setSelectedAuthor('');
+              setSelectedTag('');
+              setMinRating(0);
+              setSortBy('publishedAt');
+              setSortOrder('desc');
             }}
             initialFilters={{
               search: searchQuery,
               categoryId: selectedCategory,
               authorId: selectedAuthor,
+              tagId: selectedTag,
+              minRating,
+              sortBy,
+              sortOrder,
               language: storyLanguage
             }}
           />

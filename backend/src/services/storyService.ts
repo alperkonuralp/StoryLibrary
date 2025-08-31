@@ -8,7 +8,7 @@ export class StoryService {
    * Get stories with filtering and pagination
    */
   static async getStories(filters: StoryFilters) {
-    const { page, limit, search, categoryId, tagId, authorId, seriesId, language, status } = filters;
+    const { page, limit, search, categoryId, tagId, authorId, seriesId, language, status, minRating, sortBy, sortOrder } = filters;
     const skip = (page - 1) * limit;
 
     // Build where clause
@@ -65,6 +65,12 @@ export class StoryService {
       };
     }
 
+    if (minRating !== undefined) {
+      where.averageRating = {
+        gte: minRating
+      };
+    }
+
     const [stories, total] = await Promise.all([
       prisma.story.findMany({
         where,
@@ -99,9 +105,11 @@ export class StoryService {
         },
         skip,
         take: limit,
-        orderBy: {
-          publishedAt: 'desc'
-        }
+        orderBy: (() => {
+          const orderBy: any = {};
+          orderBy[sortBy || 'publishedAt'] = sortOrder || 'desc';
+          return orderBy;
+        })()
       }),
       prisma.story.count({ where })
     ]);

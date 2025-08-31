@@ -64,6 +64,9 @@ class ApiClient {
     if (filters?.authorId) params.append('authorId', filters.authorId);
     if (filters?.language) params.append('language', filters.language);
     if (filters?.status) params.append('status', filters.status);
+    if (filters?.minRating !== undefined && filters.minRating > 0) params.append('minRating', filters.minRating.toString());
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
 
     const queryString = params.toString();
     const endpoint = `/stories${queryString ? `?${queryString}` : ''}`;

@@ -183,6 +183,9 @@ export interface StoryFilters {
   seriesId?: string;
   language?: Language;
   status?: 'DRAFT' | 'PUBLISHED';
+  minRating?: number;
+  sortBy?: 'createdAt' | 'updatedAt' | 'publishedAt' | 'title' | 'averageRating' | 'ratingCount';
+  sortOrder?: 'asc' | 'desc';
 }
 
 // Form types

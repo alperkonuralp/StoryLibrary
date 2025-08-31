@@ -193,17 +193,25 @@ describe('AdvancedSearch', () => {
     })
   })
 
-  it('should handle apply filters button in advanced panel', async () => {
+  it('should trigger immediate search when advanced filters change', async () => {
     render(<AdvancedSearch {...defaultProps} />)
 
     const advancedButton = screen.getByRole('button', { name: /advanced/i })
     fireEvent.click(advancedButton)
 
     await waitFor(() => {
-      const applyButton = screen.getByRole('button', { name: /apply filters/i })
-      fireEvent.click(applyButton)
-      expect(defaultProps.onSearch).toHaveBeenCalled()
+      expect(screen.getByText(/minimum rating/i)).toBeInTheDocument()
     })
+
+    // Test that changing rating triggers immediate search
+    const ratingSelect = screen.getByDisplayValue('Any Rating')
+    fireEvent.change(ratingSelect, { target: { value: '4' } })
+
+    expect(defaultProps.onSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        minRating: 4
+      })
+    )
   })
 
   it('should clear all filters when clear button is clicked', async () => {
@@ -305,5 +313,73 @@ describe('AdvancedSearch', () => {
     rerender(<AdvancedSearch {...defaultProps} />)
 
     expect(screen.getByDisplayValue('persistent search')).toBeInTheDocument()
+  })
+
+  it('should auto-search when advanced filters change', async () => {
+    const mockOnSearch = jest.fn()
+    render(<AdvancedSearch {...defaultProps} onSearch={mockOnSearch} />)
+
+    // Open advanced filters
+    const advancedButton = screen.getByRole('button', { name: /advanced/i })
+    fireEvent.click(advancedButton)
+
+    await waitFor(() => {
+      expect(screen.getByText('Tags')).toBeInTheDocument()
+    })
+
+    // Change tag filter - should auto-search  
+    const tagSelects = screen.getAllByRole('combobox')
+    const tagSelect = tagSelects.find(select => 
+      select.closest('div')?.querySelector('label')?.textContent?.includes('Tags')
+    )!
+    fireEvent.change(tagSelect, { target: { value: 'tag-1' } })
+
+    await waitFor(() => {
+      expect(mockOnSearch).toHaveBeenCalledWith({
+        search: '',
+        categoryId: '',
+        authorId: '',
+        tagId: 'tag-1',
+        minRating: 0,
+        language: 'en',
+        sortBy: 'newest'
+      })
+    })
+
+    // Change minimum rating - should auto-search
+    const ratingSelect = tagSelects.find(select => 
+      select.closest('div')?.querySelector('label')?.textContent?.includes('Minimum Rating')
+    )!
+    fireEvent.change(ratingSelect, { target: { value: '4' } })
+
+    await waitFor(() => {
+      expect(mockOnSearch).toHaveBeenCalledWith({
+        search: '',
+        categoryId: '',
+        authorId: '',
+        tagId: 'tag-1',
+        minRating: 4,
+        language: 'en',
+        sortBy: 'newest'
+      })
+    })
+
+    // Change sort order - should auto-search
+    const sortSelect = tagSelects.find(select => 
+      select.closest('div')?.querySelector('label')?.textContent?.includes('Sort By')
+    )!
+    fireEvent.change(sortSelect, { target: { value: 'rating' } })
+
+    await waitFor(() => {
+      expect(mockOnSearch).toHaveBeenCalledWith({
+        search: '',
+        categoryId: '',
+        authorId: '',
+        tagId: 'tag-1',
+        minRating: 4,
+        language: 'en',
+        sortBy: 'rating'
+      })
+    })
   })
 })

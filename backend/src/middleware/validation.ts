@@ -219,6 +219,7 @@ export const storyFilterSchema = paginationSchema.extend({
   seriesId: z.string().uuid().optional(),
   language: z.enum(['en', 'tr']).optional(),
   status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
+  minRating: z.coerce.number().min(0).max(5).optional(),
   sortBy: z.enum(['createdAt', 'updatedAt', 'publishedAt', 'title', 'averageRating', 'ratingCount']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });

@@ -60,7 +60,10 @@ const storyFilterSchema = paginationSchema.extend({
   authorId: z.string().uuid().optional(),
   seriesId: z.string().uuid().optional(),
   language: z.enum(['en', 'tr']).optional(),
-  status: z.enum(['DRAFT', 'PUBLISHED']).optional()
+  status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
+  minRating: z.coerce.number().min(0).max(5).optional(),
+  sortBy: z.enum(['createdAt', 'updatedAt', 'publishedAt', 'title', 'averageRating', 'ratingCount']).default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc')
 });
 
 const ratingSchema = z.object({
@@ -71,7 +74,7 @@ export const storyController = {
   // GET /api/stories - Get all stories with filtering and pagination
   getStories: async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { page, limit, search, categoryId, tagId, authorId, seriesId, language, status } = 
+      const { page, limit, search, categoryId, tagId, authorId, seriesId, language, status, minRating, sortBy, sortOrder } = 
         storyFilterSchema.parse(req.query);
 
       const skip = (page - 1) * limit;
@@ -221,6 +224,12 @@ export const storyController = {
         };
       }
 
+      if (minRating !== undefined) {
+        where.averageRating = {
+          gte: minRating
+        };
+      }
+
       const [stories, total] = await Promise.all([
         getPrismaClient().story.findMany({
           where,
@@ -258,16 +267,12 @@ export const storyController = {
           },
           skip,
           take: limit,
-          orderBy: search ? [
-            // When searching, prioritize by rating and engagement
-            { averageRating: 'desc' },
-            { ratingCount: 'desc' },
-            { publishedAt: 'desc' }
-          ] : [
-            // Default sort order
-            { publishedAt: 'desc' },
-            { createdAt: 'desc' }
-          ]
+          orderBy: (() => {
+            // Build dynamic sort order
+            const orderBy: any = {};
+            orderBy[sortBy] = sortOrder;
+            return [orderBy];
+          })()
         }),
         getPrismaClient().story.count({ where })
       ]);

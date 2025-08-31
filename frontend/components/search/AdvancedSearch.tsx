@@ -119,8 +119,8 @@ export function AdvancedSearch({
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
     
-    // Auto-search for basic filters
-    if (key === 'search' || key === 'categoryId' || key === 'authorId') {
+    // Auto-search for all filters (immediate feedback)
+    if (key === 'search' || key === 'categoryId' || key === 'authorId' || key === 'tagId' || key === 'minRating' || key === 'sortBy') {
       // Add to search history when searching
       if (key === 'search' && value && typeof value === 'string' && value.trim()) {
         addToHistory(value, {
@@ -483,9 +483,6 @@ export function AdvancedSearch({
                   </Button>
                 )}
               </div>
-              <Button onClick={handleAdvancedSearch}>
-                Apply Filters
-              </Button>
             </div>
           </CardContent>
         </Card>
