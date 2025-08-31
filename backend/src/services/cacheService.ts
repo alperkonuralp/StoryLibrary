@@ -152,7 +152,7 @@ export class CacheService {
       };
     } catch (error) {
       logger.warn('Cache info error:', error);
-      return { enabled: false, error: error.message };
+      return { enabled: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 

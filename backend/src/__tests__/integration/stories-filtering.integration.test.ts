@@ -1,18 +1,16 @@
 import request from 'supertest';
-import app from '../../app-auth'; // Use the auth version with filtering
-import { PrismaClient } from '@prisma/client';
+import app from '../../app'; // Use the main app with filtering
 
-// Mock Prisma
+// Mock Prisma first with proper hoisting
 const mockPrisma = {
   story: {
     findMany: jest.fn(),
     count: jest.fn(),
   },
-} as jest.Mocked<Pick<PrismaClient, 'story'>>;
+};
 
-// Mock Prisma module
 jest.mock('@prisma/client', () => ({
-  PrismaClient: jest.fn(() => mockPrisma),
+  PrismaClient: jest.fn().mockImplementation(() => mockPrisma),
 }));
 
 describe('Stories API Filtering Integration Tests', () => {

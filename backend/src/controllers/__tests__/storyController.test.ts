@@ -83,10 +83,16 @@ describe('StoryController', () => {
         expect.objectContaining({
           where: {
             status: 'PUBLISHED',
-            OR: [
+            OR: expect.arrayContaining([
               {
                 title: {
                   path: ['en'],
+                  string_contains: 'test query'
+                }
+              },
+              {
+                title: {
+                  path: ['tr'],
                   string_contains: 'test query'
                 }
               },
@@ -95,8 +101,14 @@ describe('StoryController', () => {
                   path: ['en'],
                   string_contains: 'test query'
                 }
+              },
+              {
+                shortDescription: {
+                  path: ['tr'],
+                  string_contains: 'test query'
+                }
               }
-            ]
+            ])
           }
         })
       )

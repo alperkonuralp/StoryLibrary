@@ -1,17 +1,15 @@
 import request from 'supertest';
-import app from '../../app-auth';
-import { PrismaClient } from '@prisma/client';
+import app from '../../app';
 
-// Mock Prisma
+// Mock Prisma first with proper hoisting
 const mockPrisma = {
   author: {
     findMany: jest.fn(),
   },
-} as jest.Mocked<Pick<PrismaClient, 'author'>>;
+};
 
-// Mock Prisma module
 jest.mock('@prisma/client', () => ({
-  PrismaClient: jest.fn(() => mockPrisma),
+  PrismaClient: jest.fn().mockImplementation(() => mockPrisma),
 }));
 
 describe('Authors API Integration Tests', () => {

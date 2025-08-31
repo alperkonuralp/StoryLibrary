@@ -42,8 +42,13 @@ model User {
   bookmarks     UserBookmark[]
   preferences   UserPreferences?
   
+  // Follow relationships
+  following     UserFollow[]   @relation("UserFollows")
+  followers     UserFollow[]   @relation("UserFollowers")
+  
   @@index([email])
   @@index([username])
+  @@index([role])
 }
 
 model Story {
@@ -77,6 +82,13 @@ model Story {
   @@index([slug])
   @@index([status])
   @@index([publishedAt])
+  @@index([averageRating])
+  @@index([ratingCount])
+  @@index([createdAt])
+  @@index([status, publishedAt])
+  @@index([status, averageRating])
+  @@index([status, createdAt])
+  @@index([createdBy])
 }
 
 model Author {
@@ -89,6 +101,8 @@ model Author {
   stories       StoryAuthor[]
   
   @@index([slug])
+  @@index([name])
+  @@index([createdAt])
 }
 
 model Category {
@@ -136,6 +150,9 @@ model StoryAuthor {
   author        Author         @relation(fields: [authorId], references: [id], onDelete: Cascade)
   
   @@id([storyId, authorId])
+  @@index([authorId])
+  @@index([storyId])
+  @@index([role])
 }
 
 model StoryCategory {
@@ -145,6 +162,8 @@ model StoryCategory {
   category      Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   
   @@id([storyId, categoryId])
+  @@index([categoryId])
+  @@index([storyId])
 }
 
 model StoryTag {
@@ -154,6 +173,8 @@ model StoryTag {
   tag           Tag            @relation(fields: [tagId], references: [id], onDelete: Cascade)
   
   @@id([storyId, tagId])
+  @@index([tagId])
+  @@index([storyId])
 }
 
 model StorySeries {
@@ -164,6 +185,9 @@ model StorySeries {
   series        Series         @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   
   @@id([storyId, seriesId])
+  @@index([seriesId])
+  @@index([storyId])
+  @@index([orderInSeries])
 }
 
 model UserStoryRating {
@@ -179,6 +203,10 @@ model UserStoryRating {
   
   @@unique([userId, storyId])
   @@index([storyId])
+  @@index([userId])
+  @@index([rating])
+  @@index([createdAt])
+  @@index([storyId, rating])
 }
 
 model UserReadingProgress {
@@ -218,6 +246,20 @@ model UserBookmark {
   @@unique([userId, storyId])
   @@index([userId])
   @@index([storyId])
+}
+
+model UserFollow {
+  id              String         @id @default(uuid())
+  followerId      String         // User who follows
+  followedId      String         // User being followed (author)
+  createdAt       DateTime       @default(now())
+  
+  follower        User           @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade)
+  followed        User           @relation("UserFollowers", fields: [followedId], references: [id], onDelete: Cascade)
+  
+  @@unique([followerId, followedId])
+  @@index([followerId])
+  @@index([followedId])
 }
 
 model StoryAnalytics {

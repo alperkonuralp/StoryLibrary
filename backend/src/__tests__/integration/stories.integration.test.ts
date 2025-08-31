@@ -1,5 +1,5 @@
 import request from 'supertest'
-import app from '../../app-simple'
+import app from '../../app'
 import { PrismaClient } from '@prisma/client'
 import { setPrismaClient } from '../../controllers/storyController'
 
@@ -84,10 +84,16 @@ describe('Stories API Integration Tests', () => {
       expect(mockPrisma.story.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            OR: [
+            OR: expect.arrayContaining([
               {
                 title: {
                   path: ['en'],
+                  string_contains: 'test'
+                }
+              },
+              {
+                title: {
+                  path: ['tr'],
                   string_contains: 'test'
                 }
               },
@@ -96,8 +102,14 @@ describe('Stories API Integration Tests', () => {
                   path: ['en'],
                   string_contains: 'test'
                 }
+              },
+              {
+                shortDescription: {
+                  path: ['tr'],
+                  string_contains: 'test'
+                }
               }
-            ]
+            ])
           })
         })
       )

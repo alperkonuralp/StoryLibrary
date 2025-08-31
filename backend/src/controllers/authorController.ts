@@ -671,5 +671,568 @@ export const authorController = {
         }
       });
     }
+  },
+
+  // GET /api/authors/:id/follow-status - Get follow status between current user and author
+  getFollowStatus: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id: authorId } = req.params;
+      const userId = req.user!.id;
+
+      if (userId === authorId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Cannot check follow status for yourself'
+          }
+        });
+      }
+
+      // Check if author exists
+      const author = await prisma.user.findUnique({ where: { id: authorId } });
+      if (!author) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Author not found'
+          }
+        });
+      }
+
+      // Get follow relationship
+      const followRelation = await prisma.userFollow.findUnique({
+        where: {
+          followerId_followedId: {
+            followerId: userId,
+            followedId: authorId
+          }
+        }
+      });
+
+      // Get mutual follow (if author follows current user back)
+      const mutualFollow = await prisma.userFollow.findUnique({
+        where: {
+          followerId_followedId: {
+            followerId: authorId,
+            followedId: userId
+          }
+        }
+      });
+
+      // Get followers and following counts
+      const [followersCount, followingCount] = await Promise.all([
+        prisma.userFollow.count({ where: { followedId: authorId } }),
+        prisma.userFollow.count({ where: { followerId: authorId } })
+      ]);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: {
+          isFollowing: !!followRelation,
+          isFollowedBy: !!mutualFollow,
+          followersCount,
+          followingCount
+        }
+      });
+    } catch (error) {
+      console.error('Error checking follow status:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to check follow status'
+        }
+      });
+    }
+  },
+
+  // POST /api/authors/:id/follow - Follow an author
+  followAuthor: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id: authorId } = req.params;
+      const userId = req.user!.id;
+
+      if (userId === authorId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Cannot follow yourself'
+          }
+        });
+      }
+
+      // Check if author exists
+      const author = await prisma.user.findUnique({ where: { id: authorId } });
+      if (!author) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Author not found'
+          }
+        });
+      }
+
+      // Check if already following
+      const existingFollow = await prisma.userFollow.findUnique({
+        where: {
+          followerId_followedId: {
+            followerId: userId,
+            followedId: authorId
+          }
+        }
+      });
+
+      if (existingFollow) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Already following this author'
+          }
+        });
+      }
+
+      // Create follow relationship
+      await prisma.userFollow.create({
+        data: {
+          followerId: userId,
+          followedId: authorId
+        }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: {
+          message: 'Successfully followed author'
+        }
+      });
+    } catch (error) {
+      console.error('Error following author:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to follow author'
+        }
+      });
+    }
+  },
+
+  // DELETE /api/authors/:id/follow - Unfollow an author
+  unfollowAuthor: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id: authorId } = req.params;
+      const userId = req.user!.id;
+
+      if (userId === authorId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Cannot unfollow yourself'
+          }
+        });
+      }
+
+      // Check if follow exists
+      const followRelation = await prisma.userFollow.findUnique({
+        where: {
+          followerId_followedId: {
+            followerId: userId,
+            followedId: authorId
+          }
+        }
+      });
+
+      if (!followRelation) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Not following this author'
+          }
+        });
+      }
+
+      // Delete follow relationship
+      await prisma.userFollow.delete({
+        where: {
+          followerId_followedId: {
+            followerId: userId,
+            followedId: authorId
+          }
+        }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: {
+          message: 'Successfully unfollowed author'
+        }
+      });
+    } catch (error) {
+      console.error('Error unfollowing author:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to unfollow author'
+        }
+      });
+    }
+  },
+
+  // GET /api/authors/:id/followers - Get author's followers
+  getFollowers: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id: authorId } = req.params;
+      const { page, limit } = paginationSchema.parse(req.query);
+      const skip = (page - 1) * limit;
+
+      // Check if author exists
+      const author = await prisma.user.findUnique({ where: { id: authorId } });
+      if (!author) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Author not found'
+          }
+        });
+      }
+
+      const [followers, total] = await Promise.all([
+        prisma.userFollow.findMany({
+          where: { followedId: authorId },
+          include: {
+            follower: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                profile: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit
+        }),
+        prisma.userFollow.count({ where: { followedId: authorId } })
+      ]);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: {
+          followers: followers.map(f => ({
+            ...f.follower,
+            followedAt: f.createdAt
+          })),
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch followers'
+        }
+      });
+    }
+  },
+
+  // GET /api/authors/:id/following - Get users that author is following
+  getFollowing: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id: authorId } = req.params;
+      const { page, limit } = paginationSchema.parse(req.query);
+      const skip = (page - 1) * limit;
+
+      // Check if author exists
+      const author = await prisma.user.findUnique({ where: { id: authorId } });
+      if (!author) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Author not found'
+          }
+        });
+      }
+
+      const [following, total] = await Promise.all([
+        prisma.userFollow.findMany({
+          where: { followerId: authorId },
+          include: {
+            followed: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                profile: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit
+        }),
+        prisma.userFollow.count({ where: { followerId: authorId } })
+      ]);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: {
+          following: following.map(f => ({
+            ...f.followed,
+            followedAt: f.createdAt
+          })),
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching following:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch following'
+        }
+      });
+    }
+  },
+
+  // SLUG-BASED METHODS
+
+  // GET /api/authors/slug/:slug/stories - Get author stories by slug
+  getAuthorStoriesBySlug: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { slug } = req.params;
+      
+      // First find the author by slug
+      const author = await prisma.author.findUnique({
+        where: { slug },
+        select: { id: true }
+      });
+
+      if (!author) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Author not found'
+          }
+        });
+      }
+
+      // Use the existing getAuthorStories logic but with the found author ID
+      req.params.id = author.id;
+      return authorController.getAuthorStories(req, res);
+    } catch (error) {
+      console.error('Error fetching author stories by slug:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch author stories'
+        }
+      });
+    }
+  },
+
+  // GET /api/authors/slug/:slug/follow-status - Get follow status by slug
+  getFollowStatusBySlug: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { slug } = req.params;
+      
+      // First find the author by slug
+      const author = await prisma.author.findUnique({
+        where: { slug },
+        select: { id: true }
+      });
+
+      if (!author) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Author not found'
+          }
+        });
+      }
+
+      // Use the existing getFollowStatus logic but with the found author ID
+      req.params.id = author.id;
+      return authorController.getFollowStatus(req, res);
+    } catch (error) {
+      console.error('Error fetching follow status by slug:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch follow status'
+        }
+      });
+    }
+  },
+
+  // POST /api/authors/slug/:slug/follow - Follow author by slug
+  followAuthorBySlug: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { slug } = req.params;
+      
+      // First find the author by slug
+      const author = await prisma.author.findUnique({
+        where: { slug },
+        select: { id: true }
+      });
+
+      if (!author) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Author not found'
+          }
+        });
+      }
+
+      // Use the existing followAuthor logic but with the found author ID
+      req.params.id = author.id;
+      return authorController.followAuthor(req, res);
+    } catch (error) {
+      console.error('Error following author by slug:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to follow author'
+        }
+      });
+    }
+  },
+
+  // DELETE /api/authors/slug/:slug/follow - Unfollow author by slug
+  unfollowAuthorBySlug: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { slug } = req.params;
+      
+      // First find the author by slug
+      const author = await prisma.author.findUnique({
+        where: { slug },
+        select: { id: true }
+      });
+
+      if (!author) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Author not found'
+          }
+        });
+      }
+
+      // Use the existing unfollowAuthor logic but with the found author ID
+      req.params.id = author.id;
+      return authorController.unfollowAuthor(req, res);
+    } catch (error) {
+      console.error('Error unfollowing author by slug:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to unfollow author'
+        }
+      });
+    }
+  },
+
+  // GET /api/authors/slug/:slug/followers - Get followers by slug
+  getFollowersBySlug: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { slug } = req.params;
+      
+      // First find the author by slug
+      const author = await prisma.author.findUnique({
+        where: { slug },
+        select: { id: true }
+      });
+
+      if (!author) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Author not found'
+          }
+        });
+      }
+
+      // Use the existing getFollowers logic but with the found author ID
+      req.params.id = author.id;
+      return authorController.getFollowers(req, res);
+    } catch (error) {
+      console.error('Error fetching followers by slug:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch followers'
+        }
+      });
+    }
+  },
+
+  // GET /api/authors/slug/:slug/following - Get following by slug
+  getFollowingBySlug: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { slug } = req.params;
+      
+      // First find the author by slug
+      const author = await prisma.author.findUnique({
+        where: { slug },
+        select: { id: true }
+      });
+
+      if (!author) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Author not found'
+          }
+        });
+      }
+
+      // Use the existing getFollowing logic but with the found author ID
+      req.params.id = author.id;
+      return authorController.getFollowing(req, res);
+    } catch (error) {
+      console.error('Error fetching following by slug:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch following'
+        }
+      });
+    }
   }
 };

@@ -70,9 +70,9 @@ export const JWT_CONFIG = {
 // Rate Limiting
 export const RATE_LIMIT = {
   WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-  MAX_REQUESTS: 100,
-  AUTH_WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-  AUTH_MAX_REQUESTS: 5,
+  MAX_REQUESTS: 1000, // Increased for development
+  AUTH_WINDOW_MS: process.env.NODE_ENV === 'development' ? 30 * 1000 : 15 * 60 * 1000, // 30 seconds in dev, 15 minutes in prod
+  AUTH_MAX_REQUESTS: process.env.NODE_ENV === 'development' ? 100 : 5, // 100 attempts in dev, 5 in prod
 } as const;
 
 // File Upload Limits

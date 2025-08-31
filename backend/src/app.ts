@@ -91,7 +91,8 @@ app.get('/health', (_req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/stories', storyRoutes);
+app.use('/api/stories', ratingRoutes); // Rating routes mounted FIRST on /api/stories
+app.use('/api/stories', storyRoutes); // Story routes mounted SECOND on /api/stories
 app.use('/api/users', userRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/tags', tagRoutes);
@@ -99,7 +100,6 @@ app.use('/api/authors', authorRoutes);
 app.use('/api/series', seriesRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
-app.use('/api/stories', ratingRoutes); // Rating routes mounted on /api/stories
 app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler for unknown routes
