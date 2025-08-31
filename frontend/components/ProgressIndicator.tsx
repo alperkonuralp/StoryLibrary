@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Book, BookCheck, BookOpen, Clock, Target, Trash2 } from 'lucide-react';
+import { Book, BookOpen, Clock, Target, Trash2, Check } from 'lucide-react';
 
 interface ReadingProgress {
   id: string;
@@ -79,7 +79,7 @@ export function ProgressIndicator({
       <div className={`flex items-center gap-2 ${className}`}>
         <div className="flex items-center gap-1">
           {isCompleted ? (
-            <BookCheck className="h-4 w-4 text-green-600" />
+            <Check className="h-4 w-4 text-green-600" />
           ) : (
             <BookOpen className="h-4 w-4 text-blue-600" />
           )}
@@ -100,7 +100,7 @@ export function ProgressIndicator({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             {isCompleted ? (
-              <BookCheck className="h-4 w-4 text-green-600" />
+              <Check className="h-4 w-4 text-green-600" />
             ) : (
               <BookOpen className="h-4 w-4 text-blue-600" />
             )}
@@ -172,7 +172,7 @@ export function ProgressIndicator({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isCompleted ? (
-            <BookCheck className="h-5 w-5 text-green-600" />
+            <Check className="h-5 w-5 text-green-600" />
           ) : (
             <BookOpen className="h-5 w-5 text-blue-600" />
           )}

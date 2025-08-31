@@ -20,6 +20,7 @@ import authorRoutes from './routes/authorRoutes';
 import seriesRoutes from './routes/seriesRoutes';
 import progressRoutes from './routes/progress';
 import bookmarkRoutes from './routes/bookmarks';
+import ratingRoutes from './routes/ratingRoutes';
 import analyticsRoutes from './routes/analyticsRoutes';
 
 // Load environment variables
@@ -98,6 +99,7 @@ app.use('/api/authors', authorRoutes);
 app.use('/api/series', seriesRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
+app.use('/api/stories', ratingRoutes); // Rating routes mounted on /api/stories
 app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler for unknown routes

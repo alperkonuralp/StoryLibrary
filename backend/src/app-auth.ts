@@ -4,11 +4,23 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 
+// Import route modules
+import progressRoutes from './routes/progress';
+import bookmarkRoutes from './routes/bookmarks';
+import userRoutes from './routes/userRoutes';
+import ratingRoutes from './routes/ratingRoutes';
+
 const app = express();
 const prisma = new PrismaClient();
 
 app.use(cors());
 app.use(express.json());
+
+// Mount route modules
+app.use('/api/progress', progressRoutes);
+app.use('/api/bookmarks', bookmarkRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/stories', ratingRoutes);
 
 // JWT secret from environment or default
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
