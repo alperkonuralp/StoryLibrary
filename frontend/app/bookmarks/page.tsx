@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,14 +24,25 @@ import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
 export default function BookmarksPage() {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
   const { bookmarks, loading, error, pagination, fetchBookmarks, removeBookmark } = useBookmarks();
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredBookmarks, setFilteredBookmarks] = useState(bookmarks);
 
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
   // Load bookmarks on mount
   useEffect(() => {
-    fetchBookmarks(1, 20);
-  }, [fetchBookmarks]);
+    if (isAuthenticated) {
+      fetchBookmarks(1, 20);
+    }
+  }, [isAuthenticated, fetchBookmarks]);
 
   // Filter bookmarks based on search
   useEffect(() => {
@@ -77,6 +90,27 @@ export default function BookmarksPage() {
     
     return `${readingTimeMinutes} min read`;
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <Navigation />
+        
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   if (loading && bookmarks.length === 0) {
     return (

@@ -55,15 +55,16 @@ export const useBookmarks = () => {
     setLoading(true);
     setError(null);
     try {
-      const url = new URL('/api/bookmarks', process.env.NEXT_PUBLIC_API_URL);
+      const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/bookmarks`);
       url.searchParams.append('page', page.toString());
       url.searchParams.append('limit', limit.toString());
 
+      const token = localStorage.getItem('token');
       const response = await fetch(url.toString(), {
         method: 'GET',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 
@@ -89,11 +90,12 @@ export const useBookmarks = () => {
   // Check if story is bookmarked
   const checkBookmarkStatus = useCallback(async (storyId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookmarks/${storyId}`, {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/bookmarks/${storyId}`, {
         method: 'GET',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 
@@ -113,13 +115,17 @@ export const useBookmarks = () => {
   // Toggle bookmark
   const toggleBookmark = useCallback(async (storyId: string): Promise<BookmarkToggleResponse | null> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookmarks/toggle`, {
-        method: 'POST',
-        credentials: 'include',
+      // First check if it's bookmarked
+      const currentStatus = await checkBookmarkStatus(storyId);
+      
+      const token = localStorage.getItem('token');
+      const method = currentStatus ? 'DELETE' : 'POST';
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/bookmarks/${storyId}`, {
+        method,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
-        body: JSON.stringify({ storyId }),
       });
 
       const data = await response.json();
@@ -129,16 +135,22 @@ export const useBookmarks = () => {
       }
 
       if (data.success) {
+        const isBookmarked = !currentStatus;
+        
         // Update local state
-        if (data.data.isBookmarked && data.data.bookmark) {
-          // Add bookmark
-          setBookmarks(prev => [data.data.bookmark, ...prev]);
+        if (isBookmarked && data.data) {
+          // Add bookmark - need to fetch full bookmark data
+          await fetchBookmarks(1, 20); // Refetch to get complete data
         } else {
           // Remove bookmark
           setBookmarks(prev => prev.filter(b => b.storyId !== storyId));
         }
 
-        return data.data;
+        return {
+          isBookmarked,
+          bookmark: data.data,
+          storyTitle: {},
+        };
       }
     } catch (err: any) {
       setError(err.message);
@@ -146,16 +158,17 @@ export const useBookmarks = () => {
       return null;
     }
     return null;
-  }, []);
+  }, [checkBookmarkStatus, fetchBookmarks]);
 
   // Remove bookmark
   const removeBookmark = useCallback(async (storyId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookmarks/${storyId}`, {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/bookmarks/${storyId}`, {
         method: 'DELETE',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 

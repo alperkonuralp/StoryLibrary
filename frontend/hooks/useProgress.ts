@@ -44,14 +44,15 @@ export const useProgress = () => {
     setLoading(true);
     setError(null);
     try {
-      const url = new URL('/api/progress', process.env.NEXT_PUBLIC_API_URL);
+      const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/progress`);
       if (status) url.searchParams.append('status', status);
 
+      const token = localStorage.getItem('token');
       const response = await fetch(url.toString(), {
         method: 'GET',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 
@@ -76,11 +77,12 @@ export const useProgress = () => {
   // Get progress for specific story
   const getStoryProgress = useCallback(async (storyId: string): Promise<ReadingProgress | null> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/progress/${storyId}`, {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/progress/${storyId}`, {
         method: 'GET',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 
@@ -100,11 +102,12 @@ export const useProgress = () => {
   // Update reading progress
   const updateProgress = useCallback(async (progressData: UpdateProgressData): Promise<ReadingProgress | null> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/progress`, {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/progress`, {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify(progressData),
       });
@@ -141,11 +144,12 @@ export const useProgress = () => {
   // Delete reading progress
   const deleteProgress = useCallback(async (storyId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/progress/${storyId}`, {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/progress/${storyId}`, {
         method: 'DELETE',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 

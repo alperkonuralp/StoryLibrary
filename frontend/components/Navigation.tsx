@@ -34,6 +34,7 @@ export default function Navigation() {
             <Link href="/stories">Stories</Link>
             <Link href="/authors">Authors</Link>
             <Link href="/categories">Categories</Link>
+            {user && <Link href="/reading-progress">Progress</Link>}
             {user && <Link href="/dashboard">Dashboard</Link>}
           </nav>
           <div className="flex items-center space-x-2">
