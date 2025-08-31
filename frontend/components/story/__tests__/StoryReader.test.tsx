@@ -1,15 +1,24 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import StoryReader from '../StoryReader'
+import { StoryReader } from '../StoryReader'
 import { useProgress } from '../../../hooks/useProgress'
 import { useAuth } from '../../../hooks/useAuth'
 
 // Mock hooks
 jest.mock('../../../hooks/useProgress', () => ({
   useProgress: jest.fn(),
+  useStoryProgress: jest.fn(),
 }))
 
 jest.mock('../../../hooks/useAuth', () => ({
   useAuth: jest.fn(),
+}))
+
+jest.mock('../../../hooks/useSettings', () => ({
+  useSettings: jest.fn(),
+}))
+
+jest.mock('../../../hooks/useOfflineReading', () => ({
+  useOfflineReading: jest.fn(),
 }))
 
 const mockUseProgress = useProgress as jest.MockedFunction<typeof useProgress>

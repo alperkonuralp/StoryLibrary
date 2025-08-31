@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import StarRating from '../StarRating'
+import { StarRating } from '../StarRating'
 
 describe('StarRating', () => {
   it('should render 5 stars by default', () => {
