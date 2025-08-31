@@ -75,7 +75,7 @@ export default function DashboardPage() {
     
     try {
       // Load dashboard data from analytics endpoint
-      const dashboardResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/dashboard`, {
+      const dashboardResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analytics/dashboard`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -91,7 +91,7 @@ export default function DashboardPage() {
       }
 
       // Load user analytics
-      const analyticsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/user?period=30`, {
+      const analyticsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analytics/user?period=30`, {
         method: 'GET',
         credentials: 'include',
         headers: {

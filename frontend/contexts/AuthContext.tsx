@@ -75,7 +75,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const response = await apiClient.login(email, password);
       
       if (response.success) {
-        const { token: newToken, user: userData } = response.data;
+        const { accessToken: newToken, user: userData } = response.data;
         
         setToken(newToken);
         setUser(userData);
@@ -99,7 +99,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const response = await apiClient.register(email, password, username);
       
       if (response.success) {
-        const { token: newToken, user: userData } = response.data;
+        const { accessToken: newToken, user: userData } = response.data;
         
         setToken(newToken);
         setUser(userData);

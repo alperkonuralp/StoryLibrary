@@ -76,7 +76,7 @@ export const useProgress = () => {
   // Get progress for specific story
   const getStoryProgress = useCallback(async (storyId: string): Promise<ReadingProgress | null> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/progress/${storyId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/progress/${storyId}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -100,7 +100,7 @@ export const useProgress = () => {
   // Update reading progress
   const updateProgress = useCallback(async (progressData: UpdateProgressData): Promise<ReadingProgress | null> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/progress`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/progress`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -141,7 +141,7 @@ export const useProgress = () => {
   // Delete reading progress
   const deleteProgress = useCallback(async (storyId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/progress/${storyId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/progress/${storyId}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {

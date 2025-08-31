@@ -20,6 +20,7 @@ class ApiClient {
     const url = `${this.baseURL}${endpoint}`;
     const config: RequestInit = {
       headers: this.headers,
+      credentials: 'include',
       ...options,
     };
 

@@ -89,7 +89,7 @@ export const useBookmarks = () => {
   // Check if story is bookmarked
   const checkBookmarkStatus = useCallback(async (storyId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookmarks/${storyId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookmarks/${storyId}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -113,7 +113,7 @@ export const useBookmarks = () => {
   // Toggle bookmark
   const toggleBookmark = useCallback(async (storyId: string): Promise<BookmarkToggleResponse | null> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookmarks/toggle`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookmarks/toggle`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -151,7 +151,7 @@ export const useBookmarks = () => {
   // Remove bookmark
   const removeBookmark = useCallback(async (storyId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookmarks/${storyId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookmarks/${storyId}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
