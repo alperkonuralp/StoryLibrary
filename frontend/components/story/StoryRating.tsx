@@ -1,143 +1,106 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Star, Trash2 } from 'lucide-react';
-import { apiClient } from '@/lib/api';
+import { Star, MessageCircle, Eye } from 'lucide-react';
+import { useStoryRating } from '@/hooks/useStoryRating';
+import { useAuth } from '@/hooks/useAuth';
+import { StarRating } from './StarRating';
+import { RatingModal } from './RatingModal';
+import { RatingStats } from './RatingStats';
+import { ReviewsList } from './ReviewsList';
 import { cn } from '@/lib/utils';
 
 interface StoryRatingProps {
   storyId: string;
+  storyTitle: string;
   initialRating?: number;
   averageRating?: number;
   ratingCount?: number;
   onRatingUpdate?: (newAverage: number, newCount: number) => void;
+  variant?: 'full' | 'compact' | 'sidebar';
+  showReviews?: boolean;
   className?: string;
-}
-
-interface UserRating {
-  id: string;
-  rating: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export function StoryRating({
   storyId,
+  storyTitle,
   initialRating,
   averageRating = 0,
   ratingCount = 0,
   onRatingUpdate,
+  variant = 'full',
+  showReviews = true,
   className
 }: StoryRatingProps) {
-  const [userRating, setUserRating] = useState<UserRating | null>(null);
-  const [hoveredRating, setHoveredRating] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  
+  const {
+    userRating,
+    ratings,
+    stats,
+    loading,
+    error,
+    submitRating,
+    updateRating,
+    deleteRating,
+    loadMoreRatings,
+    hasMoreRatings,
+  } = useStoryRating(storyId);
 
-  // Fetch user's existing rating
-  useEffect(() => {
-    const fetchUserRating = async () => {
-      try {
-        const response = await apiClient.request<UserRating>(`/stories/${storyId}/rating`, {
-          method: 'GET',
-        });
-        if (response.success) {
-          setUserRating(response.data);
-        }
-      } catch (err) {
-        // No rating exists, which is fine
-        setUserRating(null);
-      }
-    };
+  const handleRatingSuccess = (newAverage: number, newCount: number) => {
+    onRatingUpdate?.(newAverage, newCount);
+  };
 
-    fetchUserRating();
-  }, [storyId]);
-
-  const handleRating = async (rating: number) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await apiClient.request<{ 
-        userRating: UserRating;
-        averageRating: number;
-        ratingCount: number;
-      }>(`/stories/${storyId}/rating`, {
-        method: 'POST',
-        body: JSON.stringify({ rating }),
-      });
-
-      if (response.success) {
-        setUserRating(response.data.userRating);
-        onRatingUpdate?.(response.data.averageRating, response.data.ratingCount);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to rate story';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
+  // Handle rating modal
+  const handleRatingModalSubmit = async (rating: number, comment?: string) => {
+    const success = await submitRating(rating, comment);
+    if (success && stats) {
+      handleRatingSuccess(stats.averageRating, stats.totalRatings);
     }
+    return success;
   };
 
-  const handleDeleteRating = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await apiClient.request<{
-        averageRating: number;
-        ratingCount: number;
-      }>(`/stories/${storyId}/rating`, {
-        method: 'DELETE',
-      });
-
-      if (response.success) {
-        setUserRating(null);
-        onRatingUpdate?.(response.data.averageRating, response.data.ratingCount);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete rating';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
+  const handleRatingModalUpdate = async (rating: number, comment?: string) => {
+    const success = await updateRating(rating, comment);
+    if (success && stats) {
+      handleRatingSuccess(stats.averageRating, stats.totalRatings);
     }
+    return success;
   };
 
-  const renderStars = (rating: number, isInteractive = false, isHover = false) => {
-    return Array.from({ length: 5 }, (_, index) => {
-      const starIndex = index + 1;
-      const isFilled = rating >= starIndex;
-      const isHalfFilled = rating >= starIndex - 0.5 && rating < starIndex;
-
-      return (
-        <Star
-          key={index}
-          className={cn(
-            'h-5 w-5 transition-colors',
-            isInteractive && 'cursor-pointer hover:scale-110 transition-transform',
-            isFilled || isHalfFilled
-              ? 'fill-yellow-400 text-yellow-400'
-              : isHover
-                ? 'text-yellow-200'
-                : 'text-gray-300'
-          )}
-          onClick={isInteractive ? () => handleRating(starIndex) : undefined}
-          onMouseEnter={isInteractive ? () => setHoveredRating(starIndex) : undefined}
-          onMouseLeave={isInteractive ? () => setHoveredRating(0) : undefined}
-        />
-      );
-    });
+  const handleRatingModalDelete = async () => {
+    const success = await deleteRating();
+    if (success && stats) {
+      handleRatingSuccess(stats.averageRating, stats.totalRatings);
+    }
+    return success;
   };
+
+  if (loading && !stats) {
+    return (
+      <Card className={cn("w-full", className)}>
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-sm text-gray-600">Loading ratings...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (error) {
     return (
       <Card className={cn("w-full", className)}>
         <CardContent className="pt-6">
           <div className="text-center text-red-600">
-            <p className="text-sm">Failed to load rating</p>
+            <p className="text-sm">Failed to load ratings</p>
             <p className="text-xs text-gray-500">{error}</p>
           </div>
         </CardContent>
@@ -145,77 +108,171 @@ export function StoryRating({
     );
   }
 
-  return (
-    <Card className={cn("w-full", className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Star className="h-5 w-5" />
-          Story Rating
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Average Rating Display */}
-        {ratingCount > 0 && (
-          <div className="flex items-center gap-3 pb-3 border-b">
-            <div className="flex items-center gap-1">
-              {renderStars(Number(averageRating))}
-            </div>
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">{Number(averageRating).toFixed(1)}</span>
-              <span className="ml-1">({ratingCount} {ratingCount === 1 ? 'rating' : 'ratings'})</span>
-            </div>
-          </div>
+  // Compact variant for inline display
+  if (variant === 'compact') {
+    return (
+      <div className={cn("flex items-center space-x-4", className)}>
+        {stats && (
+          <>
+            <StarRating 
+              rating={stats.averageRating} 
+              readonly 
+              size="sm" 
+              showValue 
+            />
+            <span className="text-sm text-gray-600">
+              ({stats.totalRatings} review{stats.totalRatings !== 1 ? 's' : ''})
+            </span>
+          </>
         )}
+        {user && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowRatingModal(true)}
+            className="text-blue-600 hover:text-blue-700"
+          >
+            <Star className="h-4 w-4 mr-1" />
+            {userRating ? 'Update Rating' : 'Rate Story'}
+          </Button>
+        )}
+      </div>
+    );
+  }
 
-        {/* User Rating Section */}
-        <div className="space-y-3">
-          {userRating ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Your Rating</span>
-                <Badge variant="secondary">
-                  {userRating.rating.toFixed(1)} stars
+  // Sidebar variant for story page sidebar
+  if (variant === 'sidebar') {
+    return (
+      <div className={cn("space-y-4", className)}>
+        {stats && (
+          <RatingStats 
+            stats={stats} 
+            showDistribution={false} 
+          />
+        )}
+        
+        {user && (
+          <div className="space-y-2">
+            <Button
+              onClick={() => setShowRatingModal(true)}
+              className="w-full"
+              variant={userRating ? "outline" : "default"}
+            >
+              <Star className="h-4 w-4 mr-2" />
+              {userRating ? 'Update Your Rating' : 'Rate This Story'}
+            </Button>
+            
+            {userRating && (
+              <div className="text-center">
+                <Badge variant="secondary" className="text-xs">
+                  Your rating: {userRating.rating} stars
                 </Badge>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  {renderStars(userRating.rating, true, hoveredRating > 0)}
-                </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleDeleteRating}
-                  disabled={loading}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-              <p className="text-xs text-gray-500">
-                Rated on {new Date(userRating.createdAt).toLocaleDateString()}
-                {userRating.createdAt !== userRating.updatedAt && ' (updated)'}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <span className="text-sm font-medium">Rate this Story</span>
-              <div className="flex items-center gap-1">
-                {renderStars(hoveredRating, true, true)}
-              </div>
-              <p className="text-xs text-gray-500">
-                Click a star to rate this story
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Loading state */}
-        {loading && (
-          <div className="text-center text-sm text-gray-500">
-            Updating rating...
+            )}
           </div>
         )}
-      </CardContent>
-    </Card>
+
+        <RatingModal
+          isOpen={showRatingModal}
+          onClose={() => setShowRatingModal(false)}
+          storyTitle={storyTitle}
+          existingRating={userRating}
+          onSubmit={handleRatingModalSubmit}
+          onUpdate={handleRatingModalUpdate}
+          onDelete={handleRatingModalDelete}
+          loading={loading}
+        />
+      </div>
+    );
+  }
+
+  // Full variant for comprehensive rating display
+  return (
+    <div className={cn("space-y-6", className)}>
+      {/* Rating Stats */}
+      {stats && (
+        <RatingStats stats={stats} />
+      )}
+
+      {/* User Actions */}
+      {user && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Your Rating</span>
+              {userRating && (
+                <Badge variant="secondary">
+                  {userRating.rating} stars
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                {userRating ? (
+                  <StarRating rating={userRating.rating} readonly size="md" />
+                ) : (
+                  <span className="text-gray-500">Not rated yet</span>
+                )}
+              </div>
+              <Button
+                onClick={() => setShowRatingModal(true)}
+                variant={userRating ? "outline" : "default"}
+              >
+                <Star className="h-4 w-4 mr-2" />
+                {userRating ? 'Update Rating' : 'Rate Story'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reviews Section */}
+      {showReviews && ratings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <MessageCircle className="h-5 w-5" />
+                <span>Reviews</span>
+              </div>
+              {ratings.length > 3 && !showAllReviews && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAllReviews(true)}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  View All
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ReviewsList
+              ratings={showAllReviews ? ratings : ratings.slice(0, 3)}
+              loading={loading}
+              hasMoreRatings={hasMoreRatings && showAllReviews}
+              onLoadMore={loadMoreRatings}
+              currentUserId={user?.id}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Rating Modal */}
+      <RatingModal
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        storyTitle={storyTitle}
+        existingRating={userRating}
+        onSubmit={handleRatingModalSubmit}
+        onUpdate={handleRatingModalUpdate}
+        onDelete={handleRatingModalDelete}
+        loading={loading}
+      />
+    </div>
   );
 }
 
