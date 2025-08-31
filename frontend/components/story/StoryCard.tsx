@@ -9,6 +9,10 @@ import { Progress } from '@/components/ui/progress';
 import { BookOpen, Clock, User, Star, Languages, Bookmark, BookmarkCheck, CheckCircle2 } from 'lucide-react';
 import { useStoryProgress } from '@/hooks/useProgress';
 import { useStoryBookmark } from '@/hooks/useBookmarks';
+import { StarRating } from './StarRating';
+import { ShareButtonCompact } from '../social/ShareButton';
+import { FollowButtonCompact } from '../social/FollowButton';
+import { OfflineButtonCompact } from './OfflineButton';
 import SearchHighlight from '@/components/search/SearchHighlight';
 
 interface Story {
@@ -111,6 +115,9 @@ export function StoryCard({
                 </div>
               )}
               
+              {/* Offline Download Button */}
+              <OfflineButtonCompact storyId={story.id} />
+              
               {showBookmark && (
                 <Button
                   variant="ghost"
@@ -194,9 +201,15 @@ export function StoryCard({
               )}
 
               {story.averageRating && story.ratingCount && story.ratingCount > 0 && (
-                <div className="flex items-center gap-1">
-                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                  <span>{Number(story.averageRating).toFixed(1)} ({story.ratingCount})</span>
+                <div className="flex items-center gap-1 text-xs">
+                  <StarRating 
+                    rating={Number(story.averageRating)} 
+                    readonly 
+                    size="sm" 
+                  />
+                  <span className="text-gray-600">
+                    {Number(story.averageRating).toFixed(1)} ({story.ratingCount})
+                  </span>
                 </div>
               )}
 
@@ -230,6 +243,24 @@ export function StoryCard({
                   +{story.tags.length - 3}
                 </Badge>
               )}
+            </div>
+          )}
+
+          {/* Social Actions */}
+          {story.authors && story.authors.length > 0 && (
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+              <div className="flex items-center space-x-3">
+                <FollowButtonCompact
+                  authorId={story.authors[0].author.id}
+                  authorName={story.authors[0].author.name}
+                />
+                <ShareButtonCompact
+                  storyId={story.id}
+                  storySlug={story.slug}
+                  title={story.title[language] || Object.values(story.title)[0]}
+                  description={story.shortDescription[language] || Object.values(story.shortDescription)[0]}
+                />
+              </div>
             </div>
           )}
 

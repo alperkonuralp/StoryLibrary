@@ -7,9 +7,12 @@ import { Button } from '@/components/ui/button';
 import { StoryReader } from '@/components/story/StoryReader';
 import { ProgressTracker } from '@/components/story/ProgressTracker';
 import { StoryRating } from '@/components/story/StoryRating';
-import { BookOpen, ArrowLeft, Heart, Share2, Bookmark } from 'lucide-react';
+import { BookOpen, ArrowLeft, Heart, Share2, Bookmark, Star, UserPlus } from 'lucide-react';
 import { useStory } from '@/hooks/useStories';
 import { useStoryBookmark } from '@/hooks/useBookmarks';
+import { ShareButton } from '@/components/social/ShareButton';
+import { FollowButton } from '@/components/social/FollowButton';
+import { OfflineButton } from '@/components/story/OfflineButton';
 import type { DisplayMode } from '@/types';
 export default function StoryPage() {
   const params = useParams();
@@ -192,6 +195,13 @@ export default function StoryPage() {
           </Button>
           
           <div className="flex items-center space-x-2">
+            <OfflineButton 
+              storyId={story.id}
+              size="sm"
+              variant="outline"
+              showText={true}
+            />
+            
             <Button
               variant="ghost"
               size="sm"
@@ -203,14 +213,25 @@ export default function StoryPage() {
               {bookmarkLoading ? 'Loading...' : isBookmarked ? 'Bookmarked' : 'Bookmark'}
             </Button>
             
+            <ShareButton
+              storyId={story.id}
+              storySlug={story.slug}
+              title={story.title.en || story.title.tr}
+              description={story.shortDescription.en || story.shortDescription.tr}
+              size="sm"
+              variant="ghost"
+            />
+            
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleShare}
+              asChild
               className="flex items-center gap-2"
             >
-              <Share2 className="h-4 w-4" />
-              Share
+              <Link href={`/stories/${slug}/ratings`}>
+                <Star className="h-4 w-4" />
+                Reviews
+              </Link>
             </Button>
           </div>
         </div>
@@ -232,6 +253,46 @@ export default function StoryPage() {
 
           {/* Sidebar with Progress and Rating */}
           <div className="lg:col-span-1 space-y-4">
+            {/* Author Info */}
+            {story.authors && story.authors.length > 0 && (
+              <div className="bg-white rounded-lg border p-4">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  {story.authors.length === 1 ? 'Author' : 'Authors'}
+                </h3>
+                <div className="space-y-3">
+                  {story.authors.map((authorRef, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <UserPlus className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <Link
+                            href={`/authors/${authorRef.author.id}`}
+                            className="font-medium text-gray-900 hover:text-blue-600 text-sm"
+                          >
+                            {authorRef.author.name}
+                          </Link>
+                          {authorRef.role && (
+                            <div className="text-xs text-gray-500 capitalize">
+                              {authorRef.role}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <FollowButton
+                        authorId={authorRef.author.id}
+                        authorName={authorRef.author.name}
+                        size="sm"
+                        variant="outline"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <ProgressTracker
               storyId={story.id}
               totalParagraphs={story.content?.en?.length || 0}
@@ -241,9 +302,12 @@ export default function StoryPage() {
             
             <StoryRating
               storyId={story.id}
+              storyTitle={story.title.en || story.title.tr}
               averageRating={storyRating.average}
               ratingCount={storyRating.count}
               onRatingUpdate={handleRatingUpdate}
+              variant="sidebar"
+              showReviews={false}
             />
           </div>
         </div>
