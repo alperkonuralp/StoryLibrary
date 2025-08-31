@@ -70,7 +70,7 @@ export const useAuthorFollow = (targetAuthorId?: string): UseAuthorFollowReturn 
     try {
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/authors/${authorId}/follow-status`, {
+      const response = await fetch(`${API_BASE_URL}/authors/slug/${authorId}/follow-status`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +110,7 @@ export const useAuthorFollow = (targetAuthorId?: string): UseAuthorFollowReturn 
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/authors/${authorId}/follow`, {
+      const response = await fetch(`${API_BASE_URL}/authors/slug/${authorId}/follow`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -155,7 +155,7 @@ export const useAuthorFollow = (targetAuthorId?: string): UseAuthorFollowReturn 
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/authors/${authorId}/follow`, {
+      const response = await fetch(`${API_BASE_URL}/authors/slug/${authorId}/follow`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

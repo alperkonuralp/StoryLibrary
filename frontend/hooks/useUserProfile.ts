@@ -52,7 +52,7 @@ export const useUserProfile = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/profile`, {
         method: 'GET',
         headers: {
@@ -83,7 +83,7 @@ export const useUserProfile = () => {
   // Fetch user statistics
   const fetchStats = useCallback(async (): Promise<UserStats | null> => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/stats`, {
         method: 'GET',
         headers: {
@@ -113,7 +113,7 @@ export const useUserProfile = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/profile`, {
         method: 'PUT',
         headers: {
@@ -147,7 +147,7 @@ export const useUserProfile = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/password`, {
         method: 'PUT',
         headers: {
@@ -178,7 +178,7 @@ export const useUserProfile = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/account`, {
         method: 'DELETE',
         headers: {

@@ -41,13 +41,19 @@ export const useProgress = () => {
 
   // Fetch all user progress
   const fetchProgress = useCallback(async (status?: 'STARTED' | 'COMPLETED') => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setProgressList([]);
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     try {
       const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/progress`);
       if (status) url.searchParams.append('status', status);
 
-      const token = localStorage.getItem('token');
       const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
@@ -77,7 +83,11 @@ export const useProgress = () => {
   // Get progress for specific story
   const getStoryProgress = useCallback(async (storyId: string): Promise<ReadingProgress | null> => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        return null;
+      }
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/progress/${storyId}`, {
         method: 'GET',
         headers: {
@@ -102,7 +112,11 @@ export const useProgress = () => {
   // Update reading progress
   const updateProgress = useCallback(async (progressData: UpdateProgressData): Promise<ReadingProgress | null> => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        return null;
+      }
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/progress`, {
         method: 'POST',
         headers: {
@@ -144,7 +158,11 @@ export const useProgress = () => {
   // Delete reading progress
   const deleteProgress = useCallback(async (storyId: string): Promise<boolean> => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        return false;
+      }
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/progress/${storyId}`, {
         method: 'DELETE',
         headers: {
@@ -197,6 +215,13 @@ export const useStoryProgress = (storyId: string) => {
   }, [storyId]);
 
   const loadProgress = async () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setProgress(null);
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     const data = await getStoryProgress(storyId);
     setProgress(data);

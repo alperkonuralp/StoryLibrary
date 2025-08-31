@@ -251,7 +251,7 @@ export function StoryCard({
             <div className="flex items-center justify-between pt-2 border-t border-gray-100">
               <div className="flex items-center space-x-3">
                 <FollowButtonCompact
-                  authorId={story.authors[0].author.id}
+                  authorId={story.authors[0].author.slug}
                   authorName={story.authors[0].author.name}
                 />
                 <ShareButtonCompact

@@ -9,7 +9,7 @@ jest.mock('next/navigation', () => ({
   useRouter: jest.fn(() => ({})),
 }));
 
-jest.mock('@/hooks/useStories', () => ({
+jest.mock('../../../hooks/useStories', () => ({
   useStories: jest.fn(() => ({
     stories: [],
     loading: false,
@@ -19,7 +19,7 @@ jest.mock('@/hooks/useStories', () => ({
   })),
 }));
 
-jest.mock('@/hooks/useCategories', () => ({
+jest.mock('../../../hooks/useCategories', () => ({
   useCategories: jest.fn(() => ({
     categories: [
       { id: 'cat1', name: { en: 'Fiction', tr: 'Kurgu' } },
@@ -29,7 +29,7 @@ jest.mock('@/hooks/useCategories', () => ({
   })),
 }));
 
-jest.mock('@/hooks/useAuthors', () => ({
+jest.mock('../../../hooks/useAuthors', () => ({
   useAuthors: jest.fn(() => ({
     authors: [
       { id: 'author1', name: 'Jane Doe' },

@@ -9,6 +9,52 @@ jest.mock('next/link', () => {
   )
 })
 
+// Mock hooks that require authentication
+jest.mock('../../../hooks/useProgress', () => ({
+  useStoryProgress: jest.fn(() => ({
+    progress: null,
+    loading: false
+  }))
+}))
+
+jest.mock('../../../hooks/useBookmarks', () => ({
+  useStoryBookmark: jest.fn(() => ({
+    isBookmarked: false,
+    loading: false,
+    toggle: jest.fn()
+  }))
+}))
+
+jest.mock('../../../hooks/useAuthorFollow', () => ({
+  useAuthorFollow: jest.fn(() => ({
+    stats: null,
+    loading: false,
+    followAuthor: jest.fn(),
+    unfollowAuthor: jest.fn()
+  }))
+}))
+
+// Mock other UI components that might cause issues
+jest.mock('../StarRating', () => {
+  return {
+    StarRating: ({ rating }: { rating: number }) => (
+      <div data-testid="star-rating">Rating: {rating}</div>
+    )
+  }
+})
+
+jest.mock('../../social/ShareButton', () => ({
+  ShareButtonCompact: () => <button data-testid="share-button">Share</button>
+}))
+
+jest.mock('../../social/FollowButton', () => ({
+  FollowButtonCompact: () => <button data-testid="follow-button">Follow</button>
+}))
+
+jest.mock('../OfflineButton', () => ({
+  OfflineButtonCompact: () => <button data-testid="offline-button">Offline</button>
+}))
+
 const mockStory = {
   id: '1',
   slug: 'test-story',

@@ -13,6 +13,7 @@ import { useStoryBookmark } from '@/hooks/useBookmarks';
 import { ShareButton } from '@/components/social/ShareButton';
 import { FollowButton } from '@/components/social/FollowButton';
 import { OfflineButton } from '@/components/story/OfflineButton';
+import Navigation from '@/components/Navigation';
 import type { DisplayMode } from '@/types';
 export default function StoryPage() {
   const params = useParams();
@@ -94,17 +95,7 @@ export default function StoryPage() {
   if (loading) {
     return (
       <div className="min-h-screen">
-        {/* Header */}
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-14 items-center">
-            <div className="mr-4 flex">
-              <Link className="mr-6 flex items-center space-x-2" href="/">
-                <BookOpen className="h-6 w-6" />
-                <span className="font-bold">Story Library</span>
-              </Link>
-            </div>
-          </div>
-        </header>
+        <Navigation />
         
         {/* Loading State */}
         <div className="container py-8">
@@ -125,17 +116,7 @@ export default function StoryPage() {
   if (error || (!loading && !story)) {
     return (
       <div className="min-h-screen">
-        {/* Header */}
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-14 items-center">
-            <div className="mr-4 flex">
-              <Link className="mr-6 flex items-center space-x-2" href="/">
-                <BookOpen className="h-6 w-6" />
-                <span className="font-bold">Story Library</span>
-              </Link>
-            </div>
-          </div>
-        </header>
+        <Navigation />
         
         {/* Not Found / Error */}
         <div className="container py-16">
@@ -157,32 +138,7 @@ export default function StoryPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <div className="mr-4 flex">
-            <Link className="mr-6 flex items-center space-x-2" href="/">
-              <BookOpen className="h-6 w-6" />
-              <span className="font-bold">Story Library</span>
-            </Link>
-          </div>
-          <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-            <nav className="flex items-center space-x-6 text-sm font-medium">
-              <Link href="/stories">Stories</Link>
-              <Link href="/authors">Authors</Link>
-              <Link href="/categories">Categories</Link>
-            </nav>
-            <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/login">Login</Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link href="/register">Sign Up</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navigation />
 
       {/* Navigation */}
       <div className="container py-4">
@@ -282,7 +238,7 @@ export default function StoryPage() {
                         </div>
                       </div>
                       <FollowButton
-                        authorId={authorRef.author.id}
+                        authorId={authorRef.author.slug}
                         authorName={authorRef.author.name}
                         size="sm"
                         variant="outline"

@@ -177,15 +177,15 @@ class ApiClient {
   }
 
   // Authentication methods
-  async login(email: string, password: string): Promise<ApiResponse<{ token: string; user: any }>> {
-    return this.request<{ token: string; user: any }>('/auth/login', {
+  async login(email: string, password: string): Promise<ApiResponse<{ accessToken: string; user: any }>> {
+    return this.request<{ accessToken: string; user: any }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
   }
 
-  async register(email: string, password: string, username?: string): Promise<ApiResponse<{ token: string; user: any }>> {
-    return this.request<{ token: string; user: any }>('/auth/register', {
+  async register(email: string, password: string, username?: string): Promise<ApiResponse<{ accessToken: string; user: any }>> {
+    return this.request<{ accessToken: string; user: any }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, password, username }),
     });

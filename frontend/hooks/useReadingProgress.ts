@@ -42,6 +42,15 @@ export function useStoryProgress(storyId?: string) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchProgress = async (id: string) => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setProgress(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);
@@ -68,6 +77,13 @@ export function useStoryProgress(storyId?: string) {
   }) => {
     if (!storyId) {
       setError('Story ID is required');
+      return;
+    }
+
+    // Check if user is authenticated
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setError('Authentication required');
       return;
     }
 
@@ -110,6 +126,13 @@ export function useStoryProgress(storyId?: string) {
   const deleteProgress = async () => {
     if (!storyId) {
       setError('Story ID is required');
+      return;
+    }
+
+    // Check if user is authenticated
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setError('Authentication required');
       return;
     }
 
@@ -164,6 +187,16 @@ export function useAllReadingProgress(status?: 'STARTED' | 'COMPLETED') {
   } | null>(null);
 
   const fetchAllProgress = async () => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setProgressList([]);
+      setLoading(false);
+      setError(null);
+      setMeta(null);
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);

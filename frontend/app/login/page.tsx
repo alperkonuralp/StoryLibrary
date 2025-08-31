@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -19,10 +19,11 @@ export default function LoginPage() {
   const router = useRouter();
 
   // Redirect if already authenticated
-  if (isAuthenticated) {
-    router.push('/');
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,7 +166,7 @@ export default function LoginPage() {
                 <div className="mt-2 space-y-1 text-xs text-green-700">
                   <p><strong>Admin:</strong> admin@storylibrary.com / admin123</p>
                   <p><strong>Editor:</strong> editor@storylibrary.com / editor123</p>
-                  <p><strong>User:</strong> john@example.com / password</p>
+                  <p><strong>User:</strong> user@storylibrary.com / user123</p>
                 </div>
                 <Button variant="outline" size="sm" className="mt-2" asChild>
                   <Link href="/stories">Browse Stories</Link>

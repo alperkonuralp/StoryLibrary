@@ -59,7 +59,7 @@ export const useBookmarks = () => {
       url.searchParams.append('page', page.toString());
       url.searchParams.append('limit', limit.toString());
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
@@ -90,7 +90,7 @@ export const useBookmarks = () => {
   // Check if story is bookmarked
   const checkBookmarkStatus = useCallback(async (storyId: string): Promise<boolean> => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/bookmarks/${storyId}`, {
         method: 'GET',
         headers: {
@@ -118,7 +118,7 @@ export const useBookmarks = () => {
       // First check if it's bookmarked
       const currentStatus = await checkBookmarkStatus(storyId);
       
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const method = currentStatus ? 'DELETE' : 'POST';
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/bookmarks/${storyId}`, {
         method,
@@ -163,7 +163,7 @@ export const useBookmarks = () => {
   // Remove bookmark
   const removeBookmark = useCallback(async (storyId: string): Promise<boolean> => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/bookmarks/${storyId}`, {
         method: 'DELETE',
         headers: {
@@ -217,6 +217,13 @@ export const useStoryBookmark = (storyId: string) => {
   }, [storyId]);
 
   const checkStatus = async () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setIsBookmarked(false);
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     const status = await checkBookmarkStatus(storyId);
     setIsBookmarked(status);
