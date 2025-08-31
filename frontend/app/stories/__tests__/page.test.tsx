@@ -40,24 +40,35 @@ jest.mock('../../../hooks/useAuthors', () => ({
   })),
 }));
 
-jest.mock('@/components/story/StoryList', () => {
-  return function MockStoryList({ language, stories }: any) {
+jest.mock('../../../hooks/useTags', () => ({
+  useTags: jest.fn(() => ({
+    tags: [
+      { id: 'tag1', name: 'adventure', color: 'blue' },
+      { id: 'tag2', name: 'romance', color: 'pink' },
+    ],
+    loading: false,
+    error: null,
+  })),
+}));
+
+jest.mock('../../../components/story/StoryList', () => ({
+  StoryList: function MockStoryList({ language, stories }: any) {
     return (
       <div data-testid="story-list">
         <span data-testid="language">{language}</span>
         <span data-testid="story-count">{stories.length}</span>
       </div>
     );
-  };
-});
+  },
+}));
 
-jest.mock('@/components/Navigation', () => {
+jest.mock('../../../components/Navigation', () => {
   return function MockNavigation() {
     return <nav data-testid="navigation">Navigation</nav>;
   };
 });
 
-const mockUseStories = require('@/hooks/useStories').useStories;
+const mockUseStories = require('../../../hooks/useStories').useStories;
 const mockUseSearchParams = useSearchParams as jest.MockedFunction<typeof useSearchParams>;
 
 describe('StoriesPage', () => {
@@ -73,7 +84,7 @@ describe('StoriesPage', () => {
 
     expect(screen.getByText('Stories')).toBeInTheDocument();
     expect(screen.getByText('Discover engaging bilingual stories for language learning')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Search stories...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search stories, authors, categories...')).toBeInTheDocument();
     expect(screen.getByTestId('story-list')).toBeInTheDocument();
   });
 
@@ -170,7 +181,7 @@ describe('StoriesPage', () => {
     // Interface should remain in English
     expect(screen.getByText('Stories')).toBeInTheDocument();
     expect(screen.getByText('Active filters:')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Search stories...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search stories, authors, categories...')).toBeInTheDocument();
   });
 
   it('should handle search input correctly', async () => {
