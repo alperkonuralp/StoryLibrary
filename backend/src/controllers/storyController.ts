@@ -89,17 +89,101 @@ export const storyController = {
       }
 
       if (search) {
+        // Enhanced search: search across both languages and multiple fields
+        const searchTerm = search.trim();
+        
         where.OR = [
+          // Search in English title
           {
             title: {
-              path: [language || 'en'],
-              string_contains: search
+              path: ['en'],
+              string_contains: searchTerm
             }
           },
+          // Search in Turkish title
+          {
+            title: {
+              path: ['tr'],
+              string_contains: searchTerm
+            }
+          },
+          // Search in English description
           {
             shortDescription: {
-              path: [language || 'en'],
-              string_contains: search
+              path: ['en'],
+              string_contains: searchTerm
+            }
+          },
+          // Search in Turkish description
+          {
+            shortDescription: {
+              path: ['tr'],
+              string_contains: searchTerm
+            }
+          },
+          // Search in author names
+          {
+            authors: {
+              some: {
+                author: {
+                  name: {
+                    contains: searchTerm,
+                    mode: 'insensitive'
+                  }
+                }
+              }
+            }
+          },
+          // Search in category names (English)
+          {
+            categories: {
+              some: {
+                category: {
+                  name: {
+                    path: ['en'],
+                    string_contains: searchTerm
+                  }
+                }
+              }
+            }
+          },
+          // Search in category names (Turkish)  
+          {
+            categories: {
+              some: {
+                category: {
+                  name: {
+                    path: ['tr'],
+                    string_contains: searchTerm
+                  }
+                }
+              }
+            }
+          },
+          // Search in tag names (English)
+          {
+            tags: {
+              some: {
+                tag: {
+                  name: {
+                    path: ['en'],
+                    string_contains: searchTerm
+                  }
+                }
+              }
+            }
+          },
+          // Search in tag names (Turkish)
+          {
+            tags: {
+              some: {
+                tag: {
+                  name: {
+                    path: ['tr'],
+                    string_contains: searchTerm
+                  }
+                }
+              }
             }
           }
         ];
@@ -174,7 +258,13 @@ export const storyController = {
           },
           skip,
           take: limit,
-          orderBy: [
+          orderBy: search ? [
+            // When searching, prioritize by rating and engagement
+            { averageRating: 'desc' },
+            { ratingCount: 'desc' },
+            { publishedAt: 'desc' }
+          ] : [
+            // Default sort order
             { publishedAt: 'desc' },
             { createdAt: 'desc' }
           ]

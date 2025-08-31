@@ -48,6 +48,7 @@ interface StoryListProps {
   cardClassName?: string;
   showDescription?: boolean;
   showStats?: boolean;
+  searchTerm?: string;
   showTags?: boolean;
 }
 
@@ -60,6 +61,7 @@ export function StoryList({
   cardClassName = '',
   showDescription = true,
   showStats = true,
+  searchTerm,
   showTags = true
 }: StoryListProps) {
   if (loading) {
@@ -101,6 +103,7 @@ export function StoryList({
           showDescription={showDescription}
           showStats={showStats}
           showTags={showTags}
+          searchTerm={searchTerm}
         />
       ))}
     </div>

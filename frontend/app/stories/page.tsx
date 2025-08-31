@@ -10,6 +10,7 @@ import { Search, Filter } from 'lucide-react';
 import { useStories } from '@/hooks/useStories';
 import { useCategories } from '@/hooks/useCategories';
 import { useAuthors } from '@/hooks/useAuthors';
+import AdvancedSearch from '@/components/search/AdvancedSearch';
 import type { DisplayMode, StoryFilters } from '@/types';
 
 export default function StoriesPage() {
@@ -119,78 +120,27 @@ export default function StoriesPage() {
             </Button>
           </div>
 
-          {/* Search and Filter Bar */}
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Search Input */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <input
-                type="text"
-                placeholder="Search stories..."
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
+          {/* Advanced Search Component */}
+          <AdvancedSearch
+            onSearch={(searchFilters) => {
+              setSearchQuery(searchFilters.search);
+              setSelectedCategory(searchFilters.categoryId);
+              setSelectedAuthor(searchFilters.authorId);
+              // Additional filters can be handled here
+            }}
+            onClear={() => {
+              setSearchQuery('');
+              setSelectedCategory('');
+              setSelectedAuthor('');
+            }}
+            initialFilters={{
+              search: searchQuery,
+              categoryId: selectedCategory,
+              authorId: selectedAuthor,
+              language: storyLanguage
+            }}
+          />
 
-            {/* Category Filter */}
-            <div className="relative">
-              <select
-                value={selectedCategory}
-                onChange={(e) => handleCategoryFilter(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-primary focus:border-transparent"
-              >
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Active Filters Display */}
-          {(selectedCategory || selectedAuthor || searchQuery) && (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-600">
-                Active filters:
-              </span>
-              {selectedCategory && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  {selectedCategoryName}
-                  <button 
-                    onClick={() => setSelectedCategory('')}
-                    className="ml-1 hover:bg-gray-300 rounded-full w-4 h-4 flex items-center justify-center text-xs"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {selectedAuthor && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  {selectedAuthorName}
-                  <button 
-                    onClick={() => setSelectedAuthor('')}
-                    className="ml-1 hover:bg-gray-300 rounded-full w-4 h-4 flex items-center justify-center text-xs"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {searchQuery && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  "{searchQuery}"
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="ml-1 hover:bg-gray-300 rounded-full w-4 h-4 flex items-center justify-center text-xs"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Stories List */}
@@ -206,6 +156,7 @@ export default function StoriesPage() {
             stories={stories}
             language={storyLanguage}
             loading={loading}
+            searchTerm={searchQuery}
             emptyMessage={
               searchQuery 
                 ? 'No stories found matching your search.'

@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { BookOpen, Clock, User, Star, Languages, Bookmark, BookmarkCheck, CheckCircle2 } from 'lucide-react';
 import { useStoryProgress } from '@/hooks/useProgress';
 import { useStoryBookmark } from '@/hooks/useBookmarks';
+import SearchHighlight from '@/components/search/SearchHighlight';
 
 interface Story {
   id: string;
@@ -55,6 +56,7 @@ interface StoryCardProps {
   showTags?: boolean;
   showProgress?: boolean;
   showBookmark?: boolean;
+  searchTerm?: string;
   className?: string;
 }
 
@@ -66,6 +68,7 @@ export function StoryCard({
   showTags = true,
   showProgress = true,
   showBookmark = true,
+  searchTerm,
   className = ''
 }: StoryCardProps) {
   const title = story.title[language] || Object.values(story.title)[0] || 'Untitled';
@@ -96,7 +99,7 @@ export function StoryCard({
           <div className="flex items-start justify-between">
             <CardTitle className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors flex-1 mr-2">
               <Link href={`/stories/${story.slug}`}>
-                {title}
+                <SearchHighlight text={title} searchTerm={searchTerm} />
               </Link>
             </CardTitle>
             
@@ -140,7 +143,7 @@ export function StoryCard({
           
           {showDescription && description && (
             <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
-              {description}
+              <SearchHighlight text={description} searchTerm={searchTerm} />
             </p>
           )}
 
