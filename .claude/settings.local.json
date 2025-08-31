@@ -16,7 +16,10 @@
       "Bash(npm run build:*)",
       "Bash(npm run dev:*)",
       "Bash(npm test:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)",
+      "WebFetch(domain:localhost)"
     ],
     "deny": [],
     "ask": []

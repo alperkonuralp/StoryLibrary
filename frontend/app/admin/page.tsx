@@ -14,10 +14,12 @@ import { useStories } from '@/hooks/useStories';
 import { useCategories } from '@/hooks/useCategories';
 import { useTags } from '@/hooks/useTags';
 import { useUsers } from '@/hooks/useUsers';
+import { useAuthors } from '@/hooks/useAuthors';
 import Navigation from '@/components/Navigation';
 import { EditUserDialog } from '@/components/admin/EditUserDialog';
 import { EditCategoryDialog } from '@/components/admin/EditCategoryDialog';
 import { EditTagDialog } from '@/components/admin/EditTagDialog';
+import { EditAuthorDialog } from '@/components/admin/EditAuthorDialog';
 import { apiClient } from '@/lib/api';
 
 // Mock statistics - in a real app these would come from API
@@ -33,7 +35,7 @@ const mockStats = {
 };
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'stories' | 'users' | 'categories' | 'tags'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'stories' | 'users' | 'categories' | 'authors' | 'tags'>('overview');
   const [editingUser, setEditingUser] = useState(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deletingStory, setDeletingStory] = useState<string | null>(null);
@@ -46,6 +48,9 @@ export default function AdminDashboard() {
   const [editingTag, setEditingTag] = useState(null);
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [deletingTag, setDeletingTag] = useState<string | null>(null);
+  const [editingAuthor, setEditingAuthor] = useState(null);
+  const [isAuthorDialogOpen, setIsAuthorDialogOpen] = useState(false);
+  const [deletingAuthor, setDeletingAuthor] = useState<string | null>(null);
   const [selectedStories, setSelectedStories] = useState<string[]>([]);
   const [bulkOperationInProgress, setBulkOperationInProgress] = useState(false);
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -58,6 +63,7 @@ export default function AdminDashboard() {
   const { categories, loading: categoriesLoading, refetch: refetchCategories } = useCategories();
   const { tags, loading: tagsLoading, refetch: refetchTags } = useTags();
   const { users, loading: usersLoading, refetch: refetchUsers } = useUsers();
+  const { authors, loading: authorsLoading, refetch: refetchAuthors } = useAuthors();
 
   const handleEditUser = (user: any) => {
     setEditingUser(user);
@@ -262,6 +268,57 @@ export default function AdminDashboard() {
       alert('Failed to delete tag: ' + error.message);
     } finally {
       setDeletingTag(null);
+    }
+  };
+
+  // Author management functions
+  const handleEditAuthor = (author: any) => {
+    setEditingAuthor(author);
+    setIsAuthorDialogOpen(true);
+  };
+
+  const handleCreateAuthor = () => {
+    setEditingAuthor(null);
+    setIsAuthorDialogOpen(true);
+  };
+
+  const handleSaveAuthor = async (authorData: any) => {
+    try {
+      if (editingAuthor) {
+        await apiClient.updateAuthor(editingAuthor.id, authorData);
+        alert('Author updated successfully!');
+      } else {
+        await apiClient.createAuthor(authorData);
+        alert('Author created successfully!');
+      }
+      refetchAuthors();
+      setIsAuthorDialogOpen(false);
+    } catch (error: any) {
+      console.error('Error saving author:', error);
+      alert('Failed to save author: ' + error.message);
+    }
+  };
+
+  const handleDeleteAuthor = async (authorId: string, authorName: string) => {
+    if (!confirm(`Are you sure you want to delete author "${authorName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeletingAuthor(authorId);
+      const response = await apiClient.deleteAuthor(authorId);
+      
+      if (response.success) {
+        alert('Author deleted successfully!');
+        refetchAuthors();
+      } else {
+        throw new Error(response.error?.message || 'Failed to delete author');
+      }
+    } catch (error: any) {
+      console.error('Error deleting author:', error);
+      alert('Failed to delete author: ' + error.message);
+    } finally {
+      setDeletingAuthor(null);
     }
   };
 
@@ -1029,20 +1086,92 @@ export default function AdminDashboard() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Authors Management</CardTitle>
-                  <Button>
+                  <Button onClick={handleCreateAuthor}>
                     <Plus className="h-4 w-4 mr-2" />
                     New Author
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Author Management</h3>
-                    <p className="text-gray-500 mb-4">
-                      Manage author profiles, biographies, and story associations.
-                    </p>
-                    <p className="text-sm text-gray-600">Current authors: {mockStats.totalAuthors}</p>
-                  </div>
+                  {authorsLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+                      <p>Loading authors...</p>
+                    </div>
+                  ) : authors && authors.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="text-sm text-gray-600 mb-4">
+                        Total: {authors.length} authors
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {authors.map((author) => (
+                          <div key={author.id} className="flex items-start justify-between p-4 border rounded-lg">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                {author.imageUrl && (
+                                  <img
+                                    src={author.imageUrl}
+                                    alt={author.name}
+                                    className="w-10 h-10 rounded-full object-cover"
+                                  />
+                                )}
+                                <div>
+                                  <h4 className="font-medium">{author.name}</h4>
+                                  <p className="text-xs text-gray-500">@{author.slug}</p>
+                                </div>
+                              </div>
+                              {(author.bio?.en || author.bio?.tr) && (
+                                <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                                  {author.bio?.en || author.bio?.tr}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-4 text-xs text-gray-500">
+                                <span>Stories: {author.stories?.length || 0}</span>
+                                {author.socialLinks?.website && (
+                                  <a 
+                                    href={author.socialLinks.website} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-500 hover:underline"
+                                  >
+                                    Website
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditAuthor(author)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteAuthor(author.id, author.name)}
+                                disabled={deletingAuthor === author.id}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Authors Found</h3>
+                      <p className="text-gray-500 mb-4">
+                        Create author profiles to associate with your stories.
+                      </p>
+                      <Button onClick={handleCreateAuthor}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create First Author
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -1112,6 +1241,14 @@ export default function AdminDashboard() {
         open={isTagDialogOpen}
         onOpenChange={setIsTagDialogOpen}
         onSave={handleSaveTag}
+      />
+
+      {/* Edit Author Dialog */}
+      <EditAuthorDialog
+        author={editingAuthor}
+        open={isAuthorDialogOpen}
+        onOpenChange={setIsAuthorDialogOpen}
+        onSave={handleSaveAuthor}
       />
     </div>
   );
