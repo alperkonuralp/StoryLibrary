@@ -388,15 +388,28 @@ describe('useBookmarks', () => {
     it('should remove bookmark successfully', async () => {
       const mockResponse = { success: true }
 
-      mockFetch.mockResolvedValue({
+      // First mock fetchBookmarks call for initial data
+      mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockResponse),
+        json: () => Promise.resolve({
+          success: true,
+          data: [...mockBookmarksList],
+          meta: { page: 1, limit: 20, total: 2, pages: 1 }
+        }),
       })
 
       const { result } = renderHook(() => useBookmarks())
 
-      // Set initial bookmarks
-      result.current.bookmarks = [...mockBookmarksList]
+      // Fetch initial bookmarks to establish state
+      await act(async () => {
+        await result.current.fetchBookmarks()
+      })
+
+      // Now mock remove call
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      })
 
       let removeResult
       await act(async () => {
@@ -446,10 +459,22 @@ describe('useStoryBookmark', () => {
   })
 
   describe('Initial state and mounting', () => {
-    it('should initialize with default state', () => {
+    it('should initialize with default state', async () => {
+      // Mock the checkBookmarkStatus call that happens on mount
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ success: true, data: { isBookmarked: false } }),
+      })
+
       const { result } = renderHook(() => useStoryBookmark('story-1'))
 
       expect(result.current.isBookmarked).toBe(false)
+      
+      // Wait for the mounting API call to complete
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0))
+      })
+
       expect(result.current.loading).toBe(false)
     })
 
@@ -568,16 +593,23 @@ describe('useStoryBookmark', () => {
     })
 
     it('should handle toggle errors', async () => {
-      // Mock check status that fails
+      // Mock check status that happens on mount (succeeds)
       mockFetch.mockResolvedValueOnce({
-        ok: false,
-        json: () => Promise.resolve({ error: { message: 'Check failed' } }),
+        ok: true,
+        json: () => Promise.resolve({ success: true, data: { isBookmarked: false } }),
       })
 
       const { result } = renderHook(() => useStoryBookmark('story-1'))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
+      })
+
+      // Mock toggle operation that fails
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: { message: 'Toggle failed' } }),
       })
 
       let toggleResult

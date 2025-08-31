@@ -343,10 +343,27 @@ describe('useProgress', () => {
         json: () => Promise.resolve(mockResponse),
       })
 
+      // First mock fetchProgress call for initial data
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          data: [mockProgressItem],
+        }),
+      })
+
       const { result } = renderHook(() => useProgress())
 
-      // Set initial state
-      result.current.progressList = [mockProgressItem]
+      // Fetch initial progress
+      await act(async () => {
+        await result.current.fetchProgress()
+      })
+
+      // Now mock updateProgress call
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      })
 
       await act(async () => {
         await result.current.updateProgress(newProgressData)
@@ -390,17 +407,28 @@ describe('useProgress', () => {
 
   describe('deleteProgress', () => {
     it('should delete progress successfully', async () => {
-      const mockResponse = { success: true }
-
-      mockFetch.mockResolvedValue({
+      // First mock fetchProgress call for initial data
+      mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockResponse),
+        json: () => Promise.resolve({
+          success: true,
+          data: [...mockProgressList],
+        }),
+      })
+
+      // Then mock delete call
+      const mockDeleteResponse = { success: true }
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockDeleteResponse),
       })
 
       const { result } = renderHook(() => useProgress())
 
-      // Set initial state
-      result.current.progressList = [...mockProgressList]
+      // Fetch initial progress to establish state
+      await act(async () => {
+        await result.current.fetchProgress()
+      })
 
       let deleteResult
       await act(async () => {

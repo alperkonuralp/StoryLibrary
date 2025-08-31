@@ -873,6 +873,257 @@ export const userController = {
   },
 
   // DELETE /api/users/account - Delete user account
+  // GET /api/users/:id - Get user by ID (Admin or own profile)
+  getUserById: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const userId = req.params.id;
+      
+      // Allow admin to view any user, or user to view their own profile
+      if (req.user.role !== 'ADMIN' && req.user.id !== userId) {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          error: {
+            code: 'AUTHORIZATION_ERROR',
+            message: 'Access denied'
+          }
+        });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          role: true,
+          profile: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              stories: true,
+              ratings: true
+            }
+          }
+        }
+      });
+
+      if (!user) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found'
+          }
+        });
+      }
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: user
+      });
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch user'
+        }
+      });
+    }
+  },
+
+  // GET /api/users/progress - Get user reading progress
+  getUserProgress: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const progress = await prisma.userReadingProgress.findMany({
+        where: { userId: req.user.id },
+        include: {
+          story: {
+            select: {
+              id: true,
+              slug: true,
+              title: true,
+              statistics: true
+            }
+          }
+        },
+        orderBy: {
+          startedAt: 'desc'
+        }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: progress
+      });
+    } catch (error) {
+      console.error('Error fetching user progress:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch progress'
+        }
+      });
+    }
+  },
+
+  // POST /api/users/progress - Update user reading progress
+  updateUserProgress: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const validation = updateReadingProgressSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid input data',
+            details: validation.error.errors
+          }
+        });
+      }
+
+      const { storyId, lastParagraph, status } = validation.data;
+
+      const progress = await prisma.userReadingProgress.upsert({
+        where: {
+          userId_storyId: {
+            userId: req.user.id,
+            storyId
+          }
+        },
+        create: {
+          userId: req.user.id,
+          storyId,
+          lastParagraph,
+          status,
+          completionPercentage: status === 'COMPLETED' ? 100 : 0,
+          readingTimeSeconds: 0
+        },
+        update: {
+          lastParagraph,
+          status,
+          completionPercentage: status === 'COMPLETED' ? 100 : 0,
+          completedAt: status === 'COMPLETED' ? new Date() : null
+        }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: progress
+      });
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to update progress'
+        }
+      });
+    }
+  },
+
+  // POST /api/users/ratings - Submit story rating
+  submitRating: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      const { storyId, rating, comment } = req.body;
+
+      if (!storyId || !rating) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Story ID and rating are required'
+          }
+        });
+      }
+
+      if (rating < 1 || rating > 5) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Rating must be between 1 and 5'
+          }
+        });
+      }
+
+      const ratingRecord = await prisma.userStoryRating.upsert({
+        where: {
+          userId_storyId: {
+            userId: req.user.id,
+            storyId
+          }
+        },
+        create: {
+          userId: req.user.id,
+          storyId,
+          rating
+        },
+        update: {
+          rating
+        }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: ratingRecord
+      });
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to submit rating'
+        }
+      });
+    }
+  },
+
   deleteAccount: async (req: AuthenticatedRequest, res: Response) => {
     try {
       if (!req.user) {

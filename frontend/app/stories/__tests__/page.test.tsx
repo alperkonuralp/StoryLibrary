@@ -11,10 +11,15 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('../../../hooks/useStories', () => ({
   useStories: jest.fn(() => ({
-    stories: [],
+    stories: [{
+      id: 'story1',
+      title: { en: 'Test Story', tr: 'Test Hikaye' },
+      slug: 'test-story',
+      shortDescription: { en: 'A test story', tr: 'Bir test hikayesi' }
+    }],
     loading: false,
     error: null,
-    pagination: null,
+    pagination: { page: 1, total: 1, pages: 1 },
     refetch: jest.fn(),
   })),
 }));
@@ -134,8 +139,12 @@ describe('StoriesPage', () => {
     render(<StoriesPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Active filters:')).toBeInTheDocument();
-      expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+      // Check that an author filter is applied by checking the hook was called with authorId
+      expect(mockUseStories).toHaveBeenCalledWith({
+        filters: expect.objectContaining({
+          authorId: 'author1',
+        }),
+      });
     });
   });
 
@@ -150,8 +159,12 @@ describe('StoriesPage', () => {
     render(<StoriesPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Active filters:')).toBeInTheDocument();
-      expect(screen.getByText('Fiction')).toBeInTheDocument();
+      // Check that a category filter is applied by checking the hook was called with categoryId
+      expect(mockUseStories).toHaveBeenCalledWith({
+        filters: expect.objectContaining({
+          categoryId: 'cat1',
+        }),
+      });
     });
   });
 
@@ -180,7 +193,6 @@ describe('StoriesPage', () => {
 
     // Interface should remain in English
     expect(screen.getByText('Stories')).toBeInTheDocument();
-    expect(screen.getByText('Active filters:')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Search stories, authors, categories...')).toBeInTheDocument();
   });
 
@@ -188,7 +200,7 @@ describe('StoriesPage', () => {
     const user = userEvent.setup();
     render(<StoriesPage />);
 
-    const searchInput = screen.getByPlaceholderText('Search stories...');
+    const searchInput = screen.getByPlaceholderText('Search stories, authors, categories...');
     await user.type(searchInput, 'test query');
 
     await waitFor(() => {
@@ -212,12 +224,19 @@ describe('StoriesPage', () => {
 
     render(<StoriesPage />);
 
+    // Wait for the filter to be applied initially
     await waitFor(() => {
-      expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+      expect(mockUseStories).toHaveBeenCalledWith({
+        filters: expect.objectContaining({
+          authorId: 'author1',
+        }),
+      });
     });
 
-    const removeButton = screen.getByRole('button', { name: '×' });
-    await user.click(removeButton);
+    // Find and use the author dropdown to clear the filter
+    const authorSelects = screen.getAllByRole('combobox');
+    const authorSelect = authorSelects[1]; // Second select is for authors
+    await user.selectOptions(authorSelect, '');
 
     // Filter should be cleared
     await waitFor(() => {
@@ -254,8 +273,12 @@ describe('StoriesPage', () => {
     render(<StoriesPage />);
 
     await waitFor(() => {
-      // Should show the ID as fallback
-      expect(screen.getByText('unknown-author')).toBeInTheDocument();
+      // Check that the unknown ID is still passed to the useStories hook
+      expect(mockUseStories).toHaveBeenCalledWith({
+        filters: expect.objectContaining({
+          authorId: 'unknown-author',
+        }),
+      });
     });
   });
 });

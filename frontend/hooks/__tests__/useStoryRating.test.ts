@@ -300,15 +300,14 @@ describe('useStoryRating', () => {
   })
 
   describe('updateRating', () => {
-    beforeEach(() => {
+
+    it('should update existing rating successfully', async () => {
       // Mock initial fetch with user rating
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockRatingsResponse),
       })
-    })
 
-    it('should update existing rating successfully', async () => {
       const updatedRating = {
         ...mockRating,
         rating: 5,
@@ -391,15 +390,31 @@ describe('useStoryRating', () => {
     })
 
     it('should handle update errors', async () => {
+      // Mock initial fetch call that happens on mount with user rating
       mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 403,
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          data: { 
+            ratings: [mockRating, mockOtherRating], 
+            stats: mockRatingStats, 
+            hasMore: false 
+          },
+        }),
       })
 
       const { result } = renderHook(() => useStoryRating('story-1'))
 
+      // Wait for initial loading to complete
       await waitFor(() => {
+        expect(result.current.loading).toBe(false)
         expect(result.current.userRating).toEqual(mockRating)
+      })
+
+      // Mock the update error
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
       })
 
       let updateResult
@@ -413,17 +428,22 @@ describe('useStoryRating', () => {
   })
 
   describe('deleteRating', () => {
-    beforeEach(() => {
+
+    it('should delete rating successfully', async () => {
       // Mock initial fetch with user rating
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockRatingsResponse),
       })
-    })
 
-    it('should delete rating successfully', async () => {
+      const { result } = renderHook(() => useStoryRating('story-1'))
+
+      await waitFor(() => {
+        expect(result.current.userRating).toEqual(mockRating)
+      })
+
+      // Now mock delete call
       const deleteResponse = { success: true }
-
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(deleteResponse),
@@ -436,12 +456,6 @@ describe('useStoryRating', () => {
           success: true,
           data: { ratings: [mockOtherRating], stats: mockRatingStats, hasMore: false },
         }),
-      })
-
-      const { result } = renderHook(() => useStoryRating('story-1'))
-
-      await waitFor(() => {
-        expect(result.current.userRating).toEqual(mockRating)
       })
 
       let deleteResult
@@ -489,15 +503,22 @@ describe('useStoryRating', () => {
     })
 
     it('should handle delete errors', async () => {
+      // Mock initial fetch with user rating
       mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
+        ok: true,
+        json: () => Promise.resolve(mockRatingsResponse),
       })
 
       const { result } = renderHook(() => useStoryRating('story-1'))
 
       await waitFor(() => {
         expect(result.current.userRating).toEqual(mockRating)
+      })
+
+      // Now mock delete error
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
       })
 
       let deleteResult
@@ -530,7 +551,7 @@ describe('useStoryRating', () => {
         },
       }
 
-      // Initial load
+      // Initial load - use page1Response for the first call
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(page1Response),
@@ -615,7 +636,8 @@ describe('useStoryRating', () => {
 
   describe('storyId changes', () => {
     it('should refetch when storyId changes', async () => {
-      mockFetch.mockResolvedValue({
+      // Mock first call for story-1
+      mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockRatingsResponse),
       })
@@ -631,6 +653,12 @@ describe('useStoryRating', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
 
+      // Mock second call for story-2
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockRatingsResponse),
+      })
+
       // Change story ID
       rerender({ storyId: 'story-2' })
 
@@ -645,9 +673,17 @@ describe('useStoryRating', () => {
     })
 
     it('should reset state when storyId changes', async () => {
-      mockFetch.mockResolvedValue({
+      // Mock first call for story-1 - single rating
+      mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockRatingsResponse),
+        json: () => Promise.resolve({
+          success: true,
+          data: {
+            ratings: [mockRating],
+            stats: mockRatingStats,
+            hasMore: false,
+          },
+        }),
       })
 
       const { result, rerender } = renderHook(
@@ -656,14 +692,24 @@ describe('useStoryRating', () => {
       )
 
       await waitFor(() => {
-        expect(result.current.ratings).toHaveLength(2)
+        expect(result.current.ratings).toHaveLength(1)
+      })
+
+      // Mock second call for story-2 - full ratings
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockRatingsResponse),
       })
 
       // Change story ID - should start with loading state
       rerender({ storyId: 'story-2' })
 
       expect(result.current.loading).toBe(true)
-      // State should be reset during loading
+      
+      // Wait for new data to load
+      await waitFor(() => {
+        expect(result.current.ratings).toHaveLength(2)
+      })
     })
   })
 

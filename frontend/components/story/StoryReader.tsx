@@ -414,7 +414,7 @@ export function StoryReader({
   const description = story.shortDescription[displayLang] || Object.values(story.shortDescription)[0] || '';
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto" data-testid="story-reader">
       {showHeader && (
         <Card className="mb-6">
           <CardHeader>
@@ -544,7 +544,7 @@ export function StoryReader({
       {/* Story content */}
       <Card>
         <CardContent className="p-6">
-          <div className="prose max-w-none">
+          <div className="prose max-w-none" data-testid="story-content">
             {Array.from({ length: maxParagraphs }, (_, index) => renderParagraph(index))}
           </div>
         </CardContent>

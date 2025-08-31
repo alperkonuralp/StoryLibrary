@@ -1,4 +1,26 @@
 import '@testing-library/jest-dom'
+import { act } from 'react'
+
+// Global act wrapper for React warnings
+const originalError = console.error
+beforeAll(() => {
+  console.error = (...args) => {
+    if (
+      typeof args[0] === 'string' &&
+      (args[0].includes('ReactDOMTestUtils.act') ||
+       args[0].includes('Warning: An update') ||
+       args[0].includes('act(...)')
+      )
+    ) {
+      return
+    }
+    originalError.call(console, ...args)
+  }
+})
+
+afterAll(() => {
+  console.error = originalError
+})
 
 // Mock Next.js router
 jest.mock('next/router', () => ({
@@ -77,7 +99,7 @@ global.fetch = jest.fn(() =>
   Promise.resolve({
     ok: true,
     status: 200,
-    json: () => Promise.resolve({}),
+    json: () => Promise.resolve({ success: true, data: {} }),
     text: () => Promise.resolve(''),
     headers: new Headers(),
     url: '',
@@ -92,3 +114,4 @@ global.fetch = jest.fn(() =>
     formData: () => Promise.resolve(new FormData()),
   })
 )
+

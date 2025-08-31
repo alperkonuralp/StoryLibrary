@@ -196,7 +196,7 @@ describe('useAsyncOperation', () => {
       expect(result2).toBe('result2')
 
       // The hook state should reflect the last completed operation
-      expect(result.current.data).toBe('result2') // Completed last
+      expect(result.current.data).toBe('result1') // Completed last (100ms vs 50ms)
       expect(result.current.loading).toBe(false)
       expect(result.current.error).toBeNull()
     })

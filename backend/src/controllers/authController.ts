@@ -398,6 +398,13 @@ export class AuthController {
       next(error);
     }
   }
+
+  /**
+   * Alias for me() method - for test compatibility
+   */
+  static async getCurrentUser(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    return AuthController.me(req, res, next);
+  }
 }
 
 // Re-export setPrismaClient for testing

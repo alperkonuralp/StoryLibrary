@@ -80,12 +80,18 @@ describe('UserController', () => {
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
         select: {
           id: true,
-          username: true,
           email: true,
+          username: true,
           role: true,
+          profile: true,
           createdAt: true,
           updatedAt: true,
-          profile: true,
+          _count: {
+            select: {
+              stories: true,
+              ratings: true
+            }
+          }
         },
         orderBy: {
           createdAt: 'desc',
@@ -107,9 +113,8 @@ describe('UserController', () => {
       expect(mockResponse.json).toHaveBeenCalledWith({
         success: false,
         error: {
-          message: 'Insufficient permissions',
-          code: 'INSUFFICIENT_PERMISSIONS',
-          statusCode: 403,
+          code: 'AUTHORIZATION_ERROR',
+          message: 'Access denied. Admin role required.',
         },
       });
     });
@@ -123,9 +128,8 @@ describe('UserController', () => {
       expect(mockResponse.json).toHaveBeenCalledWith({
         success: false,
         error: {
+          code: 'SERVER_ERROR',
           message: 'Failed to fetch users',
-          code: 'FETCH_ERROR',
-          statusCode: 500,
         },
       });
     });

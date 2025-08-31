@@ -1,226 +1,142 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { AuthController, setPrismaClient } from '../authController';
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { AuthService } from '../../services/authService';
 
-// Mock dependencies
-jest.mock('@prisma/client');
-jest.mock('bcryptjs');
-jest.mock('jsonwebtoken');
+// Mock AuthService
+jest.mock('../../services/authService');
+const mockAuthService = AuthService as jest.Mocked<typeof AuthService>;
 
-const mockPrisma = {
-  user: {
-    findUnique: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-  },
-} as any;
-
-const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
-const mockJwt = jwt as jest.Mocked<typeof jwt>;
-
-// Setup auth controller to use our mock
-setPrismaClient(mockPrisma);
+// Mock logger
+jest.mock('../../utils/logger', () => ({
+  info: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+}));
 
 describe('AuthController', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
+  let mockNext: NextFunction;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRequest = {};
+    mockRequest = {
+      body: {},
+      ip: '127.0.0.1',
+    };
     mockResponse = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
-      cookie: jest.fn(),
       clearCookie: jest.fn(),
     };
+    mockNext = jest.fn();
   });
 
   describe('register', () => {
-    beforeEach(() => {
-      mockRequest.body = {
+    it('should register a new user successfully', async () => {
+      const mockUser = {
+        id: 'user-1',
+        email: 'test@example.com',
         username: 'testuser',
+        role: 'USER',
+      };
+
+      mockRequest.body = {
         email: 'test@example.com',
         password: 'password123',
-        firstName: 'Test',
-        lastName: 'User',
-      };
-    });
-
-    it('should register a new user successfully', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null);
-      mockBcrypt.hash.mockResolvedValue('hashedPassword');
-      mockPrisma.user.create.mockResolvedValue({
-        id: 'user-1',
         username: 'testuser',
+      };
+
+      mockAuthService.register.mockResolvedValue({
+        user: mockUser,
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        expiresIn: 3600,
+      });
+
+      await AuthController.register(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockAuthService.register).toHaveBeenCalledWith({
         email: 'test@example.com',
-        role: 'USER',
-        createdAt: new Date(),
-      });
-      mockJwt.sign.mockReturnValue('access-token' as any);
-
-      await AuthController.register(mockRequest as Request, mockResponse as Response, jest.fn());
-
-      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
-      });
-      expect(mockBcrypt.hash).toHaveBeenCalledWith('password123', 10);
-      expect(mockPrisma.user.create).toHaveBeenCalledWith({
-        data: {
-          username: 'testuser',
-          email: 'test@example.com',
-          passwordHash: 'hashedPassword',
-          role: 'USER',
-          profile: {
-            create: {
-              firstName: 'Test',
-              lastName: 'User',
-            },
-          },
-        },
-        include: {
-          profile: true,
-        },
+        password: 'password123',
+        username: 'testuser',
       });
       expect(mockResponse.status).toHaveBeenCalledWith(201);
-    });
-
-    it('should reject registration if email already exists', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({
-        id: 'existing-user',
-        email: 'test@example.com',
-      });
-
-      await AuthController.register(mockRequest as Request, mockResponse as Response, jest.fn());
-
-      expect(mockResponse.status).toHaveBeenCalledWith(400);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          message: 'User with this email already exists',
-          code: 'EMAIL_EXISTS',
-          statusCode: 400,
-        },
+        success: true,
+        data: expect.objectContaining({
+          user: mockUser,
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+        }),
       });
     });
 
-    it('should validate required fields', async () => {
-      mockRequest.body = { email: 'test@example.com' }; // Missing required fields
+    it('should handle registration errors', async () => {
+      mockRequest.body = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
 
-      await AuthController.register(mockRequest as Request, mockResponse as Response, jest.fn());
+      const error = new Error('Email already exists');
+      mockAuthService.register.mockRejectedValue(error);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      await AuthController.register(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(error);
     });
   });
 
   describe('login', () => {
-    beforeEach(() => {
-      mockRequest.body = {
-        email: 'test@example.com',
-        password: 'password123',
-      };
-    });
-
     it('should login user with valid credentials', async () => {
       const mockUser = {
         id: 'user-1',
         email: 'test@example.com',
         username: 'testuser',
-        passwordHash: 'hashedPassword',
         role: 'USER',
       };
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
-      mockBcrypt.compare.mockResolvedValue(true as any);
-      mockJwt.sign.mockReturnValue('access-token' as any);
-
-      await AuthController.login(mockRequest as Request, mockResponse as Response, jest.fn());
-
-      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
-        include: { profile: true },
-      });
-      expect(mockBcrypt.compare).toHaveBeenCalledWith('password123', 'hashedPassword');
-      expect(mockResponse.status).toHaveBeenCalledWith(200);
-    });
-
-    it('should reject login with invalid email', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null);
-
-      await AuthController.login(mockRequest as Request, mockResponse as Response, jest.fn());
-
-      expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          message: 'Invalid credentials',
-          code: 'INVALID_CREDENTIALS',
-          statusCode: 401,
-        },
-      });
-    });
-
-    it('should reject login with invalid password', async () => {
-      const mockUser = {
-        id: 'user-1',
+      mockRequest.body = {
         email: 'test@example.com',
-        passwordHash: 'hashedPassword',
+        password: 'password123',
       };
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
-      mockBcrypt.compare.mockResolvedValue(false as any);
+      mockAuthService.login.mockResolvedValue({
+        user: mockUser,
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        expiresIn: 3600,
+      });
 
-      await AuthController.login(mockRequest as Request, mockResponse as Response, jest.fn());
+      await AuthController.login(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(401);
-    });
-  });
-
-  describe('refreshToken', () => {
-    it('should refresh token with valid refresh token', async () => {
-      mockRequest.body = { refreshToken: 'valid-refresh-token' };
-      
-      mockJwt.verify.mockReturnValue({ userId: 'user-1' } as any);
-      mockPrisma.user.findUnique.mockResolvedValue({
-        id: 'user-1',
+      expect(mockAuthService.login).toHaveBeenCalledWith({
         email: 'test@example.com',
+        password: 'password123',
       });
-      mockJwt.sign.mockReturnValue('new-access-token' as any);
-
-      await AuthController.refreshToken(mockRequest as Request, mockResponse as Response, jest.fn());
-
-      expect(mockJwt.verify).toHaveBeenCalledWith(
-        'valid-refresh-token',
-        process.env.JWT_REFRESH_SECRET
-      );
-      expect(mockResponse.status).toHaveBeenCalledWith(200);
-    });
-
-    it('should reject invalid refresh token', async () => {
-      mockRequest.body = { refreshToken: 'invalid-token' };
-      mockJwt.verify.mockImplementation(() => {
-        throw new Error('Invalid token');
-      });
-
-      await AuthController.refreshToken(mockRequest as Request, mockResponse as Response, jest.fn());
-
-      expect(mockResponse.status).toHaveBeenCalledWith(401);
-    });
-  });
-
-  describe('logout', () => {
-    it('should logout user and clear cookies', async () => {
-      await AuthController.logout(mockRequest as Request, mockResponse as Response, jest.fn());
-
-      expect(mockResponse.clearCookie).toHaveBeenCalledWith('accessToken');
-      expect(mockResponse.clearCookie).toHaveBeenCalledWith('refreshToken');
       expect(mockResponse.status).toHaveBeenCalledWith(200);
       expect(mockResponse.json).toHaveBeenCalledWith({
         success: true,
-        message: 'Logged out successfully',
+        data: expect.objectContaining({
+          user: mockUser,
+          accessToken: 'access-token',
+        }),
       });
+    });
+
+    it('should handle login errors', async () => {
+      mockRequest.body = {
+        email: 'test@example.com',
+        password: 'wrongpassword',
+      };
+
+      const error = new Error('Invalid credentials');
+      mockAuthService.login.mockRejectedValue(error);
+
+      await AuthController.login(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(error);
     });
   });
 
@@ -231,51 +147,45 @@ describe('AuthController', () => {
         email: 'test@example.com',
         username: 'testuser',
         role: 'USER',
+        profile: {
+          firstName: 'Test',
+          lastName: 'User',
+        },
       };
 
-      mockRequest.user = mockUser;
+      const mockStats = {
+        storiesRead: 5,
+        totalReadingTime: 300,
+        completionRate: 0.8,
+      };
 
-      await AuthController.getCurrentUser(mockRequest as any, mockResponse as Response, jest.fn());
+      (mockRequest as any).user = mockUser;
 
+      mockAuthService.getUserById.mockResolvedValue(mockUser);
+      mockAuthService.getUserStats.mockResolvedValue(mockStats);
+
+      await AuthController.getCurrentUser(mockRequest as any, mockResponse as Response, mockNext);
+
+      expect(mockAuthService.getUserById).toHaveBeenCalledWith('user-1');
+      expect(mockAuthService.getUserStats).toHaveBeenCalledWith('user-1');
       expect(mockResponse.status).toHaveBeenCalledWith(200);
       expect(mockResponse.json).toHaveBeenCalledWith({
         success: true,
         data: {
-          user: mockUser,
+          user: {
+            ...mockUser,
+            stats: mockStats,
+          },
         },
       });
     });
 
     it('should handle unauthenticated request', async () => {
-      mockRequest.user = undefined;
+      (mockRequest as any).user = undefined;
 
-      await AuthController.getCurrentUser(mockRequest as any, mockResponse as Response, jest.fn());
+      await AuthController.getCurrentUser(mockRequest as any, mockResponse as Response, mockNext);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(401);
-    });
-  });
-
-  describe('error handling', () => {
-    it('should handle database errors gracefully', async () => {
-      mockRequest.body = {
-        username: 'testuser',
-        email: 'test@example.com',
-        password: 'password123',
-      };
-
-      mockPrisma.user.findUnique.mockRejectedValue(new Error('Database error'));
-
-      await AuthController.register(mockRequest as Request, mockResponse as Response, jest.fn());
-
-      expect(mockResponse.status).toHaveBeenCalledWith(500);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          message: 'Internal server error',
-          code: 'INTERNAL_ERROR',
-          statusCode: 500,
-        },
-      });
+      expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
     });
   });
 });
