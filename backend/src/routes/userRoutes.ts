@@ -7,6 +7,12 @@ const router = Router();
 // All user routes require authentication
 router.use(authMiddleware);
 
+// Admin-only routes (must come before other routes)
+router.get('/', userController.getAllUsers); // GET /api/users - Admin only
+router.put('/:id', userController.updateUser); // PUT /api/users/:id - Admin only
+router.delete('/:id', userController.deleteUser); // DELETE /api/users/:id - Admin only
+
+// User profile routes
 router.get('/profile', userController.getProfile);
 router.put('/profile', userController.updateProfile);
 router.put('/password', userController.changePassword);

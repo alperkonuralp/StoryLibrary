@@ -38,6 +38,225 @@ const paginationSchema = z.object({
 });
 
 export const userController = {
+  // GET /api/users - Get all users (Admin only)
+  getAllUsers: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      // Check if user is admin
+      if (req.user.role !== 'ADMIN') {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          error: {
+            code: 'AUTHORIZATION_ERROR',
+            message: 'Access denied. Admin role required.'
+          }
+        });
+      }
+
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          role: true,
+          profile: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              stories: true,
+              ratings: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: users
+      });
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'SERVER_ERROR',
+          message: 'Failed to fetch users'
+        }
+      });
+    }
+  },
+
+  // PUT /api/users/:id - Update user (Admin only)
+  updateUser: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      // Check if user is admin
+      if (req.user.role !== 'ADMIN') {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          error: {
+            code: 'AUTHORIZATION_ERROR',
+            message: 'Access denied. Admin role required.'
+          }
+        });
+      }
+
+      const { id } = req.params;
+      const { username, email, role, profile } = req.body;
+
+      // Validate the user exists
+      const existingUser = await prisma.user.findUnique({
+        where: { id }
+      });
+
+      if (!existingUser) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found'
+          }
+        });
+      }
+
+      // Update user
+      const updatedUser = await prisma.user.update({
+        where: { id },
+        data: {
+          ...(username && { username }),
+          ...(email && { email }),
+          ...(role && { role }),
+          ...(profile && {
+            profile: {
+              upsert: {
+                create: profile,
+                update: profile
+              }
+            }
+          })
+        },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          role: true,
+          profile: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: updatedUser
+      });
+    } catch (error) {
+      console.error('Error updating user:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'SERVER_ERROR',
+          message: 'Failed to update user'
+        }
+      });
+    }
+  },
+
+  // DELETE /api/users/:id - Delete user (Admin only)
+  deleteUser: async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Not authenticated'
+          }
+        });
+      }
+
+      // Check if user is admin
+      if (req.user.role !== 'ADMIN') {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          error: {
+            code: 'AUTHORIZATION_ERROR',
+            message: 'Access denied. Admin role required.'
+          }
+        });
+      }
+
+      const { id } = req.params;
+
+      // Prevent admin from deleting themselves
+      if (id === req.user.id) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: {
+            code: 'SELF_DELETE_ERROR',
+            message: 'Cannot delete your own account'
+          }
+        });
+      }
+
+      // Validate the user exists
+      const existingUser = await prisma.user.findUnique({
+        where: { id }
+      });
+
+      if (!existingUser) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found'
+          }
+        });
+      }
+
+      // Delete user (this will cascade delete related data due to Prisma schema)
+      await prisma.user.delete({
+        where: { id }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: { message: 'User deleted successfully' }
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: {
+          code: 'SERVER_ERROR',
+          message: 'Failed to delete user'
+        }
+      });
+    }
+  },
+
   // GET /api/users/profile - Get current user profile
   getProfile: async (req: AuthenticatedRequest, res: Response) => {
     try {
