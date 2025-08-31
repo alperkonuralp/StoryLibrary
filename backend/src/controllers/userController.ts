@@ -126,9 +126,13 @@ export const userController = {
       const { id } = req.params;
       const { username, email, role, profile } = req.body;
 
-      // Validate the user exists
+      // Get existing user to validate existence and get profile data
       const existingUser = await prisma.user.findUnique({
-        where: { id }
+        where: { id },
+        select: {
+          id: true,
+          profile: true
+        }
       });
 
       if (!existingUser) {
@@ -141,21 +145,34 @@ export const userController = {
         });
       }
 
-      // Update user
+      // Merge existing profile with new profile data, but clean up any malformed data
+      const cleanExistingProfile = existingUser?.profile as any;
+      let baseProfile = {};
+      
+      // If existing profile exists and is an object, extract only valid profile fields
+      if (cleanExistingProfile && typeof cleanExistingProfile === 'object') {
+        const validFields = ['firstName', 'lastName', 'bio'];
+        baseProfile = validFields.reduce((acc, field) => {
+          if (cleanExistingProfile[field]) {
+            acc[field] = cleanExistingProfile[field];
+          }
+          return acc;
+        }, {} as any);
+      }
+      
+      const updatedProfile = profile ? {
+        ...baseProfile,
+        ...profile
+      } : baseProfile;
+
+      // Update user with all data including profile
       const updatedUser = await prisma.user.update({
         where: { id },
         data: {
           ...(username && { username }),
           ...(email && { email }),
           ...(role && { role }),
-          ...(profile && {
-            profile: {
-              upsert: {
-                create: profile,
-                update: profile
-              }
-            }
-          })
+          ...(profile && { profile: updatedProfile })
         },
         select: {
           id: true,
