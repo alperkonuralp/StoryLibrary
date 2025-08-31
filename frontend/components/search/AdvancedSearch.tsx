@@ -15,11 +15,17 @@ import {
   BookOpen,
   User,
   Tag,
-  Folder
+  Folder,
+  Clock,
+  Heart,
+  Trash2,
+  Save,
+  Plus
 } from 'lucide-react';
 import { useCategories } from '@/hooks/useCategories';
 import { useAuthors } from '@/hooks/useAuthors';
 import { useTags } from '@/hooks/useTags';
+import { useSearchHistory } from '@/hooks/useSearchHistory';
 
 interface SearchFilters {
   search: string;
@@ -64,26 +70,47 @@ export function AdvancedSearch({
   const { categories, loading: categoriesLoading } = useCategories();
   const { authors, loading: authorsLoading } = useAuthors();
   const { tags, loading: tagsLoading } = useTags();
+  const { 
+    searchHistory, 
+    savedSearches,
+    addToHistory, 
+    saveSearch,
+    deleteSavedSearch,
+    getSearchSuggestions, 
+    getRecentSearches 
+  } = useSearchHistory();
 
-  // Search suggestions based on input
+  // Search suggestions based on input and history
   useEffect(() => {
     if (filters.search.length > 2) {
-      const suggestions = [
-        // Sample suggestions - in a real app, these would come from API
+      // Get suggestions from search history
+      const historySuggestions = getSearchSuggestions(filters.search, 3);
+      
+      // Add some static suggestions
+      const staticSuggestions = [
         'adventure',
-        'technology',
+        'technology', 
         'business',
         'love story',
         'mystery',
-        'science fiction'
-      ].filter(s => s.toLowerCase().includes(filters.search.toLowerCase()))
-       .slice(0, 5);
+        'science fiction',
+        'learning',
+        'culture',
+        'travel',
+        'cooking'
+      ].filter(s => 
+        s.toLowerCase().includes(filters.search.toLowerCase()) &&
+        !historySuggestions.includes(s)
+      ).slice(0, 2);
       
-      setSearchSuggestions(suggestions);
+      setSearchSuggestions([...historySuggestions, ...staticSuggestions]);
+    } else if (filters.search.length === 0) {
+      // Show recent searches when field is empty
+      setSearchSuggestions(getRecentSearches(3));
     } else {
       setSearchSuggestions([]);
     }
-  }, [filters.search]);
+  }, [filters.search, getSearchSuggestions, getRecentSearches]);
 
   const handleFilterChange = <K extends keyof SearchFilters>(
     key: K, 
@@ -94,11 +121,29 @@ export function AdvancedSearch({
     
     // Auto-search for basic filters
     if (key === 'search' || key === 'categoryId' || key === 'authorId') {
+      // Add to search history when searching
+      if (key === 'search' && value && typeof value === 'string' && value.trim()) {
+        addToHistory(value, {
+          categoryId: newFilters.categoryId || undefined,
+          authorId: newFilters.authorId || undefined,
+          tagId: newFilters.tagId || undefined,
+          minRating: newFilters.minRating > 0 ? newFilters.minRating : undefined
+        });
+      }
       onSearch(newFilters);
     }
   };
 
   const handleAdvancedSearch = () => {
+    // Add to search history
+    if (filters.search.trim()) {
+      addToHistory(filters.search, {
+        categoryId: filters.categoryId || undefined,
+        authorId: filters.authorId || undefined,
+        tagId: filters.tagId || undefined,
+        minRating: filters.minRating > 0 ? filters.minRating : undefined
+      });
+    }
     onSearch(filters);
   };
 
@@ -137,16 +182,34 @@ export function AdvancedSearch({
           {searchSuggestions.length > 0 && (
             <Card className="absolute top-full left-0 right-0 z-10 mt-1">
               <CardContent className="p-2">
-                {searchSuggestions.map((suggestion, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleFilterChange('search', suggestion)}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded text-sm"
-                  >
-                    <Search className="inline h-3 w-3 mr-2 text-gray-400" />
-                    {suggestion}
-                  </button>
-                ))}
+                {searchSuggestions.map((suggestion, index) => {
+                  const isFromHistory = searchHistory.some(item => item.query === suggestion);
+                  const isRecent = filters.search.length === 0;
+                  
+                  return (
+                    <button
+                      key={`${suggestion}-${index}`}
+                      onClick={() => handleFilterChange('search', suggestion)}
+                      className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded text-sm flex items-center justify-between"
+                    >
+                      <div className="flex items-center">
+                        {isRecent ? (
+                          <Clock className="h-3 w-3 mr-2 text-blue-400" />
+                        ) : isFromHistory ? (
+                          <Clock className="h-3 w-3 mr-2 text-blue-400" />
+                        ) : (
+                          <Search className="h-3 w-3 mr-2 text-gray-400" />
+                        )}
+                        <span>{suggestion}</span>
+                      </div>
+                      {(isFromHistory || isRecent) && (
+                        <Badge variant="secondary" className="text-xs ml-2">
+                          {isRecent ? 'Recent' : 'History'}
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })}
               </CardContent>
             </Card>
           )}
@@ -251,6 +314,79 @@ export function AdvancedSearch({
         </div>
       )}
 
+      {/* Saved Searches & History */}
+      {showAdvanced && (savedSearches.length > 0 || searchHistory.length > 0) && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Saved Searches */}
+              {savedSearches.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-3 flex items-center">
+                    <Heart className="h-4 w-4 mr-2 text-red-500" />
+                    Saved Searches
+                  </h4>
+                  <div className="space-y-2">
+                    {savedSearches.slice(0, 5).map((saved) => (
+                      <div key={saved.id} className="flex items-center justify-between p-2 border rounded-lg">
+                        <button
+                          onClick={() => {
+                            setFilters({
+                              ...filters,
+                              search: saved.query,
+                              categoryId: saved.filters.categoryId || '',
+                              authorId: saved.filters.authorId || '',
+                              tagId: saved.filters.tagId || '',
+                              minRating: saved.filters.minRating || 0
+                            });
+                          }}
+                          className="flex-1 text-left text-sm hover:text-blue-600"
+                        >
+                          <div className="font-medium truncate">{saved.name}</div>
+                          <div className="text-xs text-gray-500 truncate">{saved.query}</div>
+                        </button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteSavedSearch(saved.id)}
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Search History */}
+              {searchHistory.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-3 flex items-center">
+                    <Clock className="h-4 w-4 mr-2 text-blue-500" />
+                    Recent Searches
+                  </h4>
+                  <div className="space-y-1">
+                    {searchHistory.slice(0, 5).map((item, index) => (
+                      <button
+                        key={`${item.query}-${item.timestamp}`}
+                        onClick={() => handleFilterChange('search', item.query)}
+                        className="block w-full text-left p-2 text-sm hover:bg-gray-50 rounded border"
+                      >
+                        <div className="truncate">{item.query}</div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(item.timestamp).toLocaleDateString()}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Advanced Filters Panel */}
       {showAdvanced && (
         <Card>
@@ -323,9 +459,30 @@ export function AdvancedSearch({
 
             {/* Action Buttons */}
             <div className="flex justify-between items-center pt-4 border-t">
-              <Button variant="outline" onClick={handleClear}>
-                Clear All Filters
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleClear}>
+                  Clear All Filters
+                </Button>
+                {filters.search.trim() && (
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      const name = prompt('Enter a name for this search:');
+                      if (name?.trim()) {
+                        saveSearch(name.trim(), filters.search, {
+                          categoryId: filters.categoryId || undefined,
+                          authorId: filters.authorId || undefined,
+                          tagId: filters.tagId || undefined,
+                          minRating: filters.minRating > 0 ? filters.minRating : undefined
+                        });
+                      }
+                    }}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Search
+                  </Button>
+                )}
+              </div>
               <Button onClick={handleAdvancedSearch}>
                 Apply Filters
               </Button>
