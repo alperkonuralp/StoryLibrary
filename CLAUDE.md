@@ -680,6 +680,18 @@ cd backend && npm test
 cd frontend && npm test
 ```
 
+## Development Rules & Best Practices
+
+### Admin Panel User Management
+**Rule**: When working with user profile updates in the admin panel, always handle Prisma JSON fields properly:
+- The `User.profile` field is a JSON field, not a separate table
+- When updating profiles, merge existing valid data with new data 
+- Clean up any malformed data from previous API responses
+- Extract only valid profile fields: `firstName`, `lastName`, `bio`
+- Always test profile data persistence after updates
+
+**Example Fix Applied**: Fixed user edit dialog functionality by properly handling JSON profile updates and cleaning malformed upsert objects from responses.
+
 ## Notes
 
 ✅ **UPDATED STATUS**: The full backend server (`app.ts`) with complete authentication is now **FULLY WORKING**! 
