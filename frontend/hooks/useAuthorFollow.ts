@@ -65,7 +65,11 @@ export const useAuthorFollow = (targetAuthorId?: string): UseAuthorFollowReturn 
   const [error, setError] = useState<string | null>(null);
 
   const checkFollowStatus = useCallback(async (authorId: string): Promise<FollowStats | null> => {
-    if (!token || !user) return null;
+    console.debug('checkFollowStatus called', { authorId, hasToken: !!token, hasUser: !!user, userId: user?.id });
+    if (!token || !user || !authorId || user.id === authorId) {
+      console.debug('checkFollowStatus early return', { hasToken: !!token, hasUser: !!user, authorId, isOwnProfile: user?.id === authorId });
+      return null;
+    }
 
     try {
       setError(null);
@@ -79,6 +83,11 @@ export const useAuthorFollow = (targetAuthorId?: string): UseAuthorFollowReturn 
       });
 
       if (!response.ok) {
+        // Don't set error for auth failures or not found - just return null silently
+        if (response.status === 401 || response.status === 403 || response.status === 404) {
+          console.debug(`Follow status check failed for author ${authorId}: ${response.status}`);
+          return null;
+        }
         throw new Error(`Failed to check follow status: ${response.status}`);
       }
 
@@ -90,7 +99,11 @@ export const useAuthorFollow = (targetAuthorId?: string): UseAuthorFollowReturn 
         throw new Error(data.message || 'Failed to check follow status');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to check follow status');
+      // Only set error for non-auth failures
+      const errorMessage = err instanceof Error ? err.message : 'Failed to check follow status';
+      if (!errorMessage.includes('404') && !errorMessage.includes('401') && !errorMessage.includes('403')) {
+        setError(errorMessage);
+      }
       return null;
     }
   }, [token, user]);
@@ -270,10 +283,18 @@ export const useAuthorFollow = (targetAuthorId?: string): UseAuthorFollowReturn 
     }
   }, [targetAuthorId, user, checkFollowStatus]);
 
-  // Load initial stats for target author
+  // Load initial stats for target author - only if authenticated
   useEffect(() => {
-    if (targetAuthorId && token && user) {
+    if (targetAuthorId && token && user && user.id !== targetAuthorId) {
+      console.debug('useAuthorFollow: Loading stats for', targetAuthorId);
       refreshStats(targetAuthorId);
+    } else {
+      console.debug('useAuthorFollow: Skipping stats load', { 
+        targetAuthorId, 
+        hasToken: !!token, 
+        hasUser: !!user, 
+        isOwnProfile: user?.id === targetAuthorId 
+      });
     }
   }, [targetAuthorId, token, user, refreshStats]);
 

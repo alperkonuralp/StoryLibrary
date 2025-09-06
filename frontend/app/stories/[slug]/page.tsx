@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { StoryReader } from '@/components/story/StoryReader';
-import { ProgressTracker } from '@/components/story/ProgressTracker';
 import { StoryRating } from '@/components/story/StoryRating';
 import { BookOpen, ArrowLeft, Heart, Share2, Bookmark, Star, UserPlus } from 'lucide-react';
 import { useStory } from '@/hooks/useStories';
@@ -19,7 +18,6 @@ export default function StoryPage() {
   const params = useParams();
   const slug = params?.slug as string;
   const [readingMode, setReadingMode] = useState<DisplayMode>('bilingual');
-  const [currentProgress, setCurrentProgress] = useState(0);
   const [storyRating, setStoryRating] = useState({
     average: 0,
     count: 0,
@@ -42,9 +40,6 @@ export default function StoryPage() {
     localStorage.setItem('preferredReadingMode', mode);
   };
 
-  const handleProgressUpdate = (paragraph: number) => {
-    setCurrentProgress(paragraph);
-  };
 
   const handleRatingUpdate = (newAverage: number, newCount: number) => {
     setStoryRating({ average: newAverage, count: newCount });
@@ -203,7 +198,6 @@ export default function StoryPage() {
               initialMode={readingMode}
               onModeChange={handleModeChange}
               showHeader={true}
-              onProgressUpdate={handleProgressUpdate}
             />
           </div>
 
@@ -249,12 +243,6 @@ export default function StoryPage() {
               </div>
             )}
 
-            <ProgressTracker
-              storyId={story.id}
-              totalParagraphs={story.content?.en?.length || 0}
-              currentParagraph={currentProgress}
-              onProgressUpdate={handleProgressUpdate}
-            />
             
             <StoryRating
               storyId={story.id}
@@ -269,21 +257,6 @@ export default function StoryPage() {
         </div>
       </div>
 
-      {/* Progress indicator - fixed at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg">
-        <div className="container">
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>Reading Progress</span>
-            <span>{Math.round((currentProgress / (story.content.en?.length || 1)) * 100)}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(currentProgress / (story.content.en?.length || 1)) * 100}%` }}
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

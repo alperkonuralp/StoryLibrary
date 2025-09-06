@@ -80,7 +80,9 @@ export const storyController = {
       const skip = (page - 1) * limit;
 
       // Build where clause
-      const where: any = {};
+      const where: any = {
+        deletedAt: null // Always filter out soft-deleted stories
+      };
 
       if (status) {
         where.status = status;
@@ -308,8 +310,11 @@ export const storyController = {
     try {
       const { id } = req.params;
 
-      const story = await getPrismaClient().story.findUnique({
-        where: { id },
+      const story = await getPrismaClient().story.findFirst({
+        where: { 
+          id,
+          deletedAt: null // Filter out soft-deleted stories
+        },
         include: {
           categories: {
             include: {
@@ -393,8 +398,11 @@ export const storyController = {
     try {
       const { slug } = req.params;
 
-      const story = await getPrismaClient().story.findUnique({
-        where: { slug },
+      const story = await getPrismaClient().story.findFirst({
+        where: { 
+          slug,
+          deletedAt: null // Filter out soft-deleted stories
+        },
         include: {
           categories: {
             include: {
@@ -488,8 +496,13 @@ export const storyController = {
         .replace(/-+/g, '-')
         .trim();
 
-      // Check if slug already exists
-      const existingStory = await getPrismaClient().story.findUnique({ where: { slug } });
+      // Check if slug already exists (including soft-deleted)
+      const existingStory = await getPrismaClient().story.findFirst({ 
+        where: { 
+          slug,
+          deletedAt: null // Only check active stories for slug conflicts
+        }
+      });
       if (existingStory) {
         return res.status(HTTP_STATUS.CONFLICT).json({
           success: false,
@@ -623,7 +636,12 @@ export const storyController = {
         });
       }
 
-      const existingStory = await getPrismaClient().story.findUnique({ where: { id } });
+      const existingStory = await getPrismaClient().story.findFirst({ 
+        where: { 
+          id,
+          deletedAt: null // Only allow updating active stories
+        }
+      });
       if (!existingStory) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
@@ -661,7 +679,11 @@ export const storyController = {
 
         if (newSlug !== existingStory.slug) {
           const slugExists = await getPrismaClient().story.findFirst({
-            where: { slug: newSlug, NOT: { id } }
+            where: { 
+              slug: newSlug, 
+              deletedAt: null, // Only check active stories for slug conflicts
+              NOT: { id }
+            }
           });
           if (slugExists) {
             return res.status(HTTP_STATUS.CONFLICT).json({
@@ -807,7 +829,12 @@ export const storyController = {
         });
       }
 
-      const story = await getPrismaClient().story.findUnique({ where: { id } });
+      const story = await getPrismaClient().story.findFirst({ 
+        where: { 
+          id,
+          deletedAt: null // Only allow operations on active stories
+        }
+      });
       if (!story) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
@@ -818,7 +845,11 @@ export const storyController = {
         });
       }
 
-      await getPrismaClient().story.delete({ where: { id } });
+      // Soft delete - set deletedAt timestamp
+      await getPrismaClient().story.update({ 
+        where: { id }, 
+        data: { deletedAt: new Date() }
+      });
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
@@ -853,7 +884,12 @@ export const storyController = {
         });
       }
 
-      const story = await getPrismaClient().story.findUnique({ where: { id } });
+      const story = await getPrismaClient().story.findFirst({ 
+        where: { 
+          id,
+          deletedAt: null // Only allow operations on active stories
+        }
+      });
       if (!story) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
@@ -953,7 +989,12 @@ export const storyController = {
         });
       }
 
-      const story = await getPrismaClient().story.findUnique({ where: { id } });
+      const story = await getPrismaClient().story.findFirst({ 
+        where: { 
+          id,
+          deletedAt: null // Only allow operations on active stories
+        }
+      });
       if (!story) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
@@ -1055,7 +1096,12 @@ export const storyController = {
 
       const { rating } = ratingSchema.parse(req.body);
 
-      const story = await getPrismaClient().story.findUnique({ where: { id } });
+      const story = await getPrismaClient().story.findFirst({ 
+        where: { 
+          id,
+          deletedAt: null // Only allow operations on active stories
+        }
+      });
       if (!story) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
@@ -1151,6 +1197,7 @@ export const storyController = {
       const stories = await getPrismaClient().story.findMany({
         where: {
           status: 'PUBLISHED',
+          deletedAt: null, // Filter out soft-deleted stories
           averageRating: {
             gte: 1
           },
@@ -1219,6 +1266,7 @@ export const storyController = {
       const stories = await getPrismaClient().story.findMany({
         where: {
           status: 'PUBLISHED',
+          deletedAt: null, // Filter out soft-deleted stories
           publishedAt: {
             gte: cutoffDate
           }

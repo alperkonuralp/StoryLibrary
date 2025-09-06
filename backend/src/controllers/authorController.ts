@@ -759,18 +759,8 @@ export const authorController = {
       const { id: authorId } = req.params;
       const userId = req.user!.id;
 
-      if (userId === authorId) {
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Cannot follow yourself'
-          }
-        });
-      }
-
       // Check if author exists
-      const author = await prisma.user.findUnique({ where: { id: authorId } });
+      const author = await prisma.author.findUnique({ where: { id: authorId } });
       if (!author) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
@@ -782,11 +772,11 @@ export const authorController = {
       }
 
       // Check if already following
-      const existingFollow = await prisma.userFollow.findUnique({
+      const existingFollow = await prisma.userAuthorFollow.findUnique({
         where: {
-          followerId_followedId: {
-            followerId: userId,
-            followedId: authorId
+          userId_authorId: {
+            userId,
+            authorId
           }
         }
       });
@@ -802,10 +792,10 @@ export const authorController = {
       }
 
       // Create follow relationship
-      await prisma.userFollow.create({
+      await prisma.userAuthorFollow.create({
         data: {
-          followerId: userId,
-          followedId: authorId
+          userId,
+          authorId
         }
       });
 
@@ -833,22 +823,12 @@ export const authorController = {
       const { id: authorId } = req.params;
       const userId = req.user!.id;
 
-      if (userId === authorId) {
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Cannot unfollow yourself'
-          }
-        });
-      }
-
       // Check if follow exists
-      const followRelation = await prisma.userFollow.findUnique({
+      const followRelation = await prisma.userAuthorFollow.findUnique({
         where: {
-          followerId_followedId: {
-            followerId: userId,
-            followedId: authorId
+          userId_authorId: {
+            userId,
+            authorId
           }
         }
       });
@@ -864,11 +844,11 @@ export const authorController = {
       }
 
       // Delete follow relationship
-      await prisma.userFollow.delete({
+      await prisma.userAuthorFollow.delete({
         where: {
-          followerId_followedId: {
-            followerId: userId,
-            followedId: authorId
+          userId_authorId: {
+            userId,
+            authorId
           }
         }
       });
@@ -1065,6 +1045,7 @@ export const authorController = {
   getFollowStatusBySlug: async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { slug } = req.params;
+      const userId = req.user!.id;
       
       // First find the author by slug
       const author = await prisma.author.findUnique({
@@ -1082,9 +1063,34 @@ export const authorController = {
         });
       }
 
-      // Use the existing getFollowStatus logic but with the found author ID
-      req.params.id = author.id;
-      return authorController.getFollowStatus(req, res);
+      // Check if user follows this author
+      const followRelation = await prisma.userAuthorFollow.findUnique({
+        where: {
+          userId_authorId: {
+            userId: userId,
+            authorId: author.id
+          }
+        }
+      });
+
+      // Get follower counts
+      const followersCount = await prisma.userAuthorFollow.count({
+        where: { authorId: author.id }
+      });
+
+      const followingCount = await prisma.userAuthorFollow.count({
+        where: { userId: userId }
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: {
+          isFollowing: !!followRelation,
+          followersCount,
+          followingCount,
+          isFollowedBy: false // Authors don't follow back users
+        }
+      });
     } catch (error) {
       console.error('Error fetching follow status by slug:', error);
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({

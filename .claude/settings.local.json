@@ -22,7 +22,9 @@
       "WebFetch(domain:localhost)",
       "Bash(npx ts-node:*)",
       "Bash(npm start)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(npm run seed:*)"
     ],
     "deny": [],
     "ask": []

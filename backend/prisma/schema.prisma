@@ -45,6 +45,7 @@ model User {
   // Follow relationships
   following     UserFollow[]   @relation("UserFollows")
   followers     UserFollow[]   @relation("UserFollowers")
+  authorFollows UserAuthorFollow[] @relation("UserAuthorFollows")
   
   @@index([email])
   @@index([username])
@@ -67,6 +68,7 @@ model Story {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   publishedAt       DateTime?
+  deletedAt         DateTime?      // Soft delete field
   createdBy         String
   creator           User           @relation("StoryCreator", fields: [createdBy], references: [id])
   
@@ -85,9 +87,11 @@ model Story {
   @@index([averageRating])
   @@index([ratingCount])
   @@index([createdAt])
+  @@index([deletedAt])
   @@index([status, publishedAt])
   @@index([status, averageRating])
   @@index([status, createdAt])
+  @@index([status, deletedAt])
   @@index([createdBy])
 }
 
@@ -99,6 +103,7 @@ model Author {
   createdAt     DateTime       @default(now())
   
   stories       StoryAuthor[]
+  followers     UserAuthorFollow[] @relation("AuthorFollowers")
   
   @@index([slug])
   @@index([name])
@@ -260,6 +265,20 @@ model UserFollow {
   @@unique([followerId, followedId])
   @@index([followerId])
   @@index([followedId])
+}
+
+model UserAuthorFollow {
+  id              String         @id @default(uuid())
+  userId          String         // User who follows
+  authorId        String         // Author being followed
+  createdAt       DateTime       @default(now())
+  
+  user            User           @relation("UserAuthorFollows", fields: [userId], references: [id], onDelete: Cascade)
+  author          Author         @relation("AuthorFollowers", fields: [authorId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, authorId])
+  @@index([userId])
+  @@index([authorId])
 }
 
 model StoryAnalytics {

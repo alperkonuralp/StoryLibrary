@@ -23,12 +23,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
+import { mergeParagraphs, parseParagraphs, isValidContent, countWords, countParagraphs } from '@/lib/paragraph-utils';
 
 interface StoryFormData {
   id: string;
   title: { en: string; tr: string };
   shortDescription: { en: string; tr: string };
-  content: { en: string[]; tr: string[] };
+  content: { en: string; tr: string }; // Changed to string instead of string[]
   slug: string;
   status: 'DRAFT' | 'REVIEW' | 'PUBLISHED';
   categoryIds: string[];
@@ -58,16 +59,8 @@ export default function EditStory() {
           tr: 'Hayallerin gerçekleştiği sihirli bir orman hakkında hikaye' 
         },
         content: { 
-          en: [
-            'Once upon a time, there was a magical forest hidden deep in the mountains.',
-            'This forest was special because it had the power to make dreams come true.',
-            'Many travelers had heard of this place, but few had ever found it.'
-          ], 
-          tr: [
-            'Bir zamanlar, dağların derinliklerinde gizlenmiş sihirli bir orman vardı.',
-            'Bu orman özeldi çünkü hayalleri gerçekleştirme gücüne sahipti.',
-            'Birçok yolcu bu yerden duymuştu, ancak çok azı onu bulabilmişti.'
-          ] 
+          en: 'Once upon a time, there was a magical forest hidden deep in the mountains.\n\nThis forest was special because it had the power to make dreams come true.\n\nMany travelers had heard of this place, but few had ever found it.', 
+          tr: 'Bir zamanlar, dağların derinliklerinde gizlenmiş sihirli bir orman vardı.\n\nBu orman özeldi çünkü hayalleri gerçekleştirme gücüne sahipti.\n\nBirçok yolcu bu yerden duymuştu, ancak çok azı onu bulabilmişti.' 
         },
         slug: 'the-magic-forest',
         status: 'DRAFT',
@@ -103,38 +96,14 @@ export default function EditStory() {
     }) : prev);
   };
 
-  const handleContentChange = (lang: 'en' | 'tr', index: number, value: string) => {
+  const handleContentChange = (lang: 'en' | 'tr', value: string) => {
     if (!formData) return;
     
     setFormData(prev => prev ? ({
       ...prev,
       content: {
         ...prev.content,
-        [lang]: prev.content[lang].map((para, i) => i === index ? value : para)
-      }
-    }) : prev);
-  };
-
-  const addParagraph = (lang: 'en' | 'tr') => {
-    if (!formData) return;
-    
-    setFormData(prev => prev ? ({
-      ...prev,
-      content: {
-        ...prev.content,
-        [lang]: [...prev.content[lang], '']
-      }
-    }) : prev);
-  };
-
-  const removeParagraph = (lang: 'en' | 'tr', index: number) => {
-    if (!formData || formData.content[lang].length <= 1) return;
-    
-    setFormData(prev => prev ? ({
-      ...prev,
-      content: {
-        ...prev.content,
-        [lang]: prev.content[lang].filter((_, i) => i !== index)
+        [lang]: value
       }
     }) : prev);
   };
@@ -146,7 +115,18 @@ export default function EditStory() {
     
     try {
       const statusToSave = newStatus || formData.status;
-      console.log('Updating story:', { ...formData, status: statusToSave });
+      
+      // Convert content strings to paragraph arrays before sending to API
+      const storyData = {
+        ...formData,
+        content: {
+          en: parseParagraphs(formData.content.en),
+          tr: parseParagraphs(formData.content.tr)
+        },
+        status: statusToSave
+      };
+      
+      console.log('Updating story:', storyData);
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
@@ -188,7 +168,7 @@ export default function EditStory() {
 
   const isValid = formData.title.en.trim() && formData.title.tr.trim() && 
                   formData.shortDescription.en.trim() && formData.shortDescription.tr.trim() &&
-                  formData.content.en.some(p => p.trim()) && formData.content.tr.some(p => p.trim());
+                  isValidContent(formData.content.en) && isValidContent(formData.content.tr);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -322,84 +302,44 @@ export default function EditStory() {
                 </TabsList>
                 
                 <TabsContent value="en" className="space-y-4">
-                  <div className="space-y-3">
-                    {formData.content.en.map((paragraph, index) => (
-                      <div key={index} className="flex gap-2">
-                        <div className="flex-1">
-                          <Label htmlFor={`para-en-${index}`} className="text-xs text-gray-500">
-                            Paragraph {index + 1}
-                          </Label>
-                          <Textarea
-                            id={`para-en-${index}`}
-                            value={paragraph}
-                            onChange={(e) => handleContentChange('en', index, e.target.value)}
-                            placeholder={`Enter paragraph ${index + 1} in English`}
-                            rows={3}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1 pt-5">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addParagraph('en')}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                          {formData.content.en.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => removeParagraph('en', index)}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                  <div>
+                    <Label htmlFor="content-en">English Content</Label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Write your story content. Separate paragraphs with double line breaks (press Enter twice).
+                    </p>
+                    <Textarea
+                      id="content-en"
+                      value={formData.content.en}
+                      onChange={(e) => handleContentChange('en', e.target.value)}
+                      placeholder="Write your story in English here...
+
+Separate each paragraph with double line breaks like this.
+
+This makes it easy to write longer stories without managing individual text boxes."
+                      rows={12}
+                      className="min-h-[300px] resize-y"
+                    />
                   </div>
                 </TabsContent>
                 
                 <TabsContent value="tr" className="space-y-4">
-                  <div className="space-y-3">
-                    {formData.content.tr.map((paragraph, index) => (
-                      <div key={index} className="flex gap-2">
-                        <div className="flex-1">
-                          <Label htmlFor={`para-tr-${index}`} className="text-xs text-gray-500">
-                            Paragraph {index + 1}
-                          </Label>
-                          <Textarea
-                            id={`para-tr-${index}`}
-                            value={paragraph}
-                            onChange={(e) => handleContentChange('tr', index, e.target.value)}
-                            placeholder={`Enter paragraph ${index + 1} in Turkish`}
-                            rows={3}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1 pt-5">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addParagraph('tr')}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                          {formData.content.tr.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => removeParagraph('tr', index)}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                  <div>
+                    <Label htmlFor="content-tr">Turkish Content</Label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Hikayenizi Türkçe olarak yazın. Paragrafları çift satır arası ile ayırın (iki kez Enter'a basın).
+                    </p>
+                    <Textarea
+                      id="content-tr"
+                      value={formData.content.tr}
+                      onChange={(e) => handleContentChange('tr', e.target.value)}
+                      placeholder="Hikayenizi buraya Türkçe olarak yazın...
+
+Her paragrafı böyle çift satır arası ile ayırın.
+
+Bu uzun hikayeler yazmayı kolaylaştırır ve bireysel metin kutularını yönetmek zorunda kalmazsınız."
+                      rows={12}
+                      className="min-h-[300px] resize-y"
+                    />
                   </div>
                 </TabsContent>
               </Tabs>
@@ -488,15 +428,15 @@ export default function EditStory() {
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>English words:</span>
-                <span>{formData.content.en.join(' ').trim().split(/\s+/).filter(w => w).length}</span>
+                <span>{countWords(formData.content.en)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Turkish words:</span>
-                <span>{formData.content.tr.join(' ').trim().split(/\s+/).filter(w => w).length}</span>
+                <span>{countWords(formData.content.tr)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Paragraphs:</span>
-                <span>EN: {formData.content.en.length} / TR: {formData.content.tr.length}</span>
+                <span>EN: {countParagraphs(formData.content.en)} / TR: {countParagraphs(formData.content.tr)}</span>
               </div>
             </CardContent>
           </Card>

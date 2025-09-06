@@ -22,6 +22,8 @@ import progressRoutes from './routes/progress';
 import bookmarkRoutes from './routes/bookmarks';
 import ratingRoutes from './routes/ratingRoutes';
 import analyticsRoutes from './routes/analyticsRoutes';
+import adminRoutes from './routes/adminRoutes';
+import userProgressRoutes from './routes/userProgressRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -94,6 +96,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/stories', ratingRoutes); // Rating routes mounted FIRST on /api/stories
 app.use('/api/stories', storyRoutes); // Story routes mounted SECOND on /api/stories
 app.use('/api/users', userRoutes);
+app.use('/api/users', userProgressRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/authors', authorRoutes);
@@ -101,6 +104,7 @@ app.use('/api/series', seriesRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler for unknown routes
 app.use('*', (req, res) => {

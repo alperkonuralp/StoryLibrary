@@ -30,6 +30,7 @@ import { useAuthors } from '@/hooks/useAuthors';
 import { apiClient } from '@/lib/api';
 import Navigation from '@/components/Navigation';
 import type { Story } from '@/types';
+import { mergeParagraphs, parseParagraphs, isValidContent, countWords, countParagraphs } from '@/lib/paragraph-utils';
 
 interface StoryFormData {
   title: {
@@ -42,8 +43,8 @@ interface StoryFormData {
   };
   slug: string;
   content: {
-    en: string[];
-    tr: string[];
+    en: string;
+    tr: string;
   };
   status: 'DRAFT' | 'PUBLISHED';
   categoryIds: string[];
@@ -69,6 +70,48 @@ export default function EditStoryPage() {
   const { tags, loading: tagsLoading } = useTags();
   const { authors, loading: authorsLoading } = useAuthors();
 
+  // Load story data
+  useEffect(() => {
+    const loadStory = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await apiClient.getStory(storyId);
+        
+        if (response.success && response.data) {
+          const storyData = response.data;
+          setStory(storyData);
+          
+          // Convert story data to form data format
+          setFormData({
+            title: storyData.title,
+            shortDescription: storyData.shortDescription,
+            slug: storyData.slug,
+            content: {
+              en: mergeParagraphs(storyData.content.en),
+              tr: mergeParagraphs(storyData.content.tr)
+            },
+            status: storyData.status,
+            categoryIds: storyData.categories?.map(c => c.categoryId) || [],
+            authorIds: storyData.authors?.map(a => a.authorId) || [],
+            tagIds: storyData.tags?.map(t => t.tagId) || []
+          });
+        } else {
+          setError(response.error?.message || 'Failed to load story');
+        }
+      } catch (error: any) {
+        setError(error.message || 'Failed to load story');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (storyId) {
+      loadStory();
+    }
+  }, [storyId]);
+
   // Check admin access
   if (!user || user.role !== 'ADMIN') {
     return (
@@ -91,45 +134,6 @@ export default function EditStoryPage() {
       </div>
     );
   }
-
-  // Load story data
-  useEffect(() => {
-    const loadStory = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await apiClient.getStory(storyId);
-        
-        if (response.success && response.data) {
-          const storyData = response.data;
-          setStory(storyData);
-          
-          // Convert story data to form data format
-          setFormData({
-            title: storyData.title,
-            shortDescription: storyData.shortDescription,
-            slug: storyData.slug,
-            content: storyData.content,
-            status: storyData.status,
-            categoryIds: storyData.categories?.map(c => c.categoryId) || [],
-            authorIds: storyData.authors?.map(a => a.authorId) || [],
-            tagIds: storyData.tags?.map(t => t.tagId) || []
-          });
-        } else {
-          setError(response.error?.message || 'Failed to load story');
-        }
-      } catch (error: any) {
-        setError(error.message || 'Failed to load story');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (storyId) {
-      loadStory();
-    }
-  }, [storyId]);
 
   const generateSlug = (title: string) => {
     return title
@@ -165,28 +169,16 @@ export default function EditStoryPage() {
     });
   };
 
-  const handleContentChange = (lang: 'en' | 'tr', index: number, value: string) => {
+  const handleContentChange = (lang: 'en' | 'tr', value: string) => {
     if (!formData) return;
     
-    const newContent = { ...formData.content };
-    newContent[lang][index] = value;
-    setFormData({ ...formData, content: newContent });
-  };
-
-  const addParagraph = (lang: 'en' | 'tr') => {
-    if (!formData) return;
-    
-    const newContent = { ...formData.content };
-    newContent[lang].push('');
-    setFormData({ ...formData, content: newContent });
-  };
-
-  const removeParagraph = (lang: 'en' | 'tr', index: number) => {
-    if (!formData || formData.content[lang].length <= 1) return;
-    
-    const newContent = { ...formData.content };
-    newContent[lang].splice(index, 1);
-    setFormData({ ...formData, content: newContent });
+    setFormData({ 
+      ...formData, 
+      content: { 
+        ...formData.content, 
+        [lang]: value 
+      } 
+    });
   };
 
   const toggleCategory = (categoryId: string) => {
@@ -233,26 +225,30 @@ export default function EditStoryPage() {
         return;
       }
 
-      if (formData.content.en.some(p => !p.trim()) || formData.content.tr.some(p => !p.trim())) {
-        alert('Please ensure all paragraphs have content');
+      if (!isValidContent(formData.content.en) || !isValidContent(formData.content.tr)) {
+        alert('Please ensure both languages have valid content');
         return;
       }
 
       const updateData = {
         ...formData,
+        content: {
+          en: parseParagraphs(formData.content.en),
+          tr: parseParagraphs(formData.content.tr)
+        },
         status: status || formData.status,
         statistics: {
           wordCount: {
-            en: formData.content.en.reduce((sum, p) => sum + p.split(' ').length, 0),
-            tr: formData.content.tr.reduce((sum, p) => sum + p.split(' ').length, 0)
+            en: countWords(formData.content.en),
+            tr: countWords(formData.content.tr)
           },
           charCount: {
-            en: formData.content.en.reduce((sum, p) => sum + p.length, 0),
-            tr: formData.content.tr.reduce((sum, p) => sum + p.length, 0)
+            en: formData.content.en.length,
+            tr: formData.content.tr.length
           },
           estimatedReadingTime: {
-            en: Math.ceil(formData.content.en.reduce((sum, p) => sum + p.split(' ').length, 0) / 200),
-            tr: Math.ceil(formData.content.tr.reduce((sum, p) => sum + p.split(' ').length, 0) / 200)
+            en: Math.ceil(countWords(formData.content.en) / 200),
+            tr: Math.ceil(countWords(formData.content.tr) / 200)
           }
         }
       };
@@ -399,7 +395,7 @@ export default function EditStoryPage() {
               </CardHeader>
               <CardContent>
                 <div className="prose max-w-none">
-                  {formData.content[activeLanguage].map((paragraph, index) => (
+                  {parseParagraphs(formData.content[activeLanguage]).map((paragraph, index) => (
                     <p key={index} className="mb-4 leading-relaxed">
                       {paragraph}
                     </p>
@@ -500,83 +496,51 @@ export default function EditStoryPage() {
                     </TabsList>
                     
                     <TabsContent value="en" className="space-y-4 mt-6">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-base font-medium">English Paragraphs</Label>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addParagraph('en')}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Paragraph
-                        </Button>
-                      </div>
-                      {formData.content.en.map((paragraph, index) => (
-                        <div key={index} className="flex gap-2">
-                          <div className="flex-1">
-                            <Label htmlFor={`en-${index}`} className="text-sm text-gray-600">
-                              Paragraph {index + 1}
-                            </Label>
-                            <Textarea
-                              id={`en-${index}`}
-                              value={paragraph}
-                              onChange={(e) => handleContentChange('en', index, e.target.value)}
-                              placeholder={`Enter paragraph ${index + 1} in English`}
-                              rows={4}
-                            />
-                          </div>
-                          {formData.content.en.length > 1 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeParagraph('en', index)}
-                              className="mt-6"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          )}
+                      <div>
+                        <Label htmlFor="content-en" className="text-base font-medium">English Content</Label>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Write your story content. Separate paragraphs with double line breaks (press Enter twice).
+                        </p>
+                        <Textarea
+                          id="content-en"
+                          value={formData.content.en}
+                          onChange={(e) => handleContentChange('en', e.target.value)}
+                          placeholder="Write your story in English here...
+
+Separate each paragraph with double line breaks like this.
+
+This makes it easy to write longer stories without managing individual text boxes."
+                          rows={15}
+                          className="min-h-[400px] resize-y"
+                        />
+                        <div className="mt-2 text-xs text-gray-500">
+                          Words: {countWords(formData.content.en)} | Paragraphs: {countParagraphs(formData.content.en)}
                         </div>
-                      ))}
+                      </div>
                     </TabsContent>
                     
                     <TabsContent value="tr" className="space-y-4 mt-6">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-base font-medium">Turkish Paragraphs</Label>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addParagraph('tr')}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Paragraph
-                        </Button>
-                      </div>
-                      {formData.content.tr.map((paragraph, index) => (
-                        <div key={index} className="flex gap-2">
-                          <div className="flex-1">
-                            <Label htmlFor={`tr-${index}`} className="text-sm text-gray-600">
-                              Paragraph {index + 1}
-                            </Label>
-                            <Textarea
-                              id={`tr-${index}`}
-                              value={paragraph}
-                              onChange={(e) => handleContentChange('tr', index, e.target.value)}
-                              placeholder={`Enter paragraph ${index + 1} in Turkish`}
-                              rows={4}
-                            />
-                          </div>
-                          {formData.content.tr.length > 1 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeParagraph('tr', index)}
-                              className="mt-6"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          )}
+                      <div>
+                        <Label htmlFor="content-tr" className="text-base font-medium">Turkish Content</Label>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Hikayenizi Türkçe olarak yazın. Paragrafları çift satır arası ile ayırın (iki kez Enter'a basın).
+                        </p>
+                        <Textarea
+                          id="content-tr"
+                          value={formData.content.tr}
+                          onChange={(e) => handleContentChange('tr', e.target.value)}
+                          placeholder="Hikayenizi buraya Türkçe olarak yazın...
+
+Her paragrafı böyle çift satır arası ile ayırın.
+
+Bu uzun hikayeler yazmayı kolaylaştırır ve bireysel metin kutularını yönetmek zorunda kalmazsınız."
+                          rows={15}
+                          className="min-h-[400px] resize-y"
+                        />
+                        <div className="mt-2 text-xs text-gray-500">
+                          Kelimeler: {countWords(formData.content.tr)} | Paragraflar: {countParagraphs(formData.content.tr)}
                         </div>
-                      ))}
+                      </div>
                     </TabsContent>
                   </Tabs>
                 </CardContent>

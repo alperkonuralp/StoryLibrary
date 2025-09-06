@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: story-library-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: story_library
+      POSTGRES_USER: story_user
+      POSTGRES_PASSWORD: 09921823ba83b41a3f558dc39560d0d0
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U story_user -d story_library"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - story-network
+    labels:
+      - "casaos.icon=https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/postgresql.svg"
+      - "casaos.name=Story Library Database"
+      - "casaos.category=Database"
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: story-library-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - story-network
+    labels:
+      - "casaos.icon=https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/redis.svg"
+      - "casaos.name=Story Library Cache"
+      - "casaos.category=Database"
+
+  # Backend API
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: story-library-backend
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://story_user:09921823ba83b41a3f558dc39560d0d0@postgres:5432/story_library?schema=public
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "30011:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/uploads:/app/uploads
+    networks:
+      - story-network
+    labels:
+      - "casaos.icon=https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/nodejs.svg"
+      - "casaos.name=Story Library API"
+      - "casaos.category=Backend"
+    command: >
+      sh -c "
+        npx prisma migrate deploy &&
+        npx prisma generate &&
+        npm run seed || echo 'Seed failed or already exists' &&
+        npm start
+      "
+
+  # Frontend Web App
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: story-library-frontend
+    restart: unless-stopped
+    env_file:
+      - ./frontend/.env.production
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://192.168.111.236:30011/api
+    ports:
+      - "30010:3000"
+    depends_on:
+      - backend
+    networks:
+      - story-network
+    labels:
+      - "casaos.icon=https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/nextjs.svg"
+      - "casaos.name=Story Library"
+      - "casaos.category=Web App"
+      - "casaos.description=Multilingual story reading platform for language learning"
+      - "casaos.main_service=true"
+
+networks:
+  story-network:
+    driver: bridge
+    name: story-library-network
+
+volumes:
+  postgres_data:
+    driver: local
+    name: story-library-postgres-data
+  redis_data:
+    driver: local
+    name: story-library-redis-data

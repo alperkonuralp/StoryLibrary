@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Clock, BookOpen, Trash2 } from 'lucide-react';
 import { useStoryProgress, useProgressCalculations } from '@/hooks/useReadingProgress';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 interface ProgressTrackerProps {
@@ -24,6 +25,7 @@ export function ProgressTracker({
   onProgressUpdate,
   className 
 }: ProgressTrackerProps) {
+  const { isAuthenticated } = useAuth();
   const {
     progress,
     loading,
@@ -93,7 +95,8 @@ export function ProgressTracker({
     onProgressUpdate?.(paragraph);
   };
 
-  if (error) {
+  // Hide error message if user is not authenticated - progress is expected to fail for anonymous users
+  if (error && isAuthenticated) {
     return (
       <Card className={cn("w-full", className)}>
         <CardContent className="pt-6">
@@ -104,6 +107,11 @@ export function ProgressTracker({
         </CardContent>
       </Card>
     );
+  }
+  
+  // Don't show progress tracker for unauthenticated users
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (

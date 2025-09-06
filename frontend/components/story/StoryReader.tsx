@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Languages, BookOpen, Clock, User, Star, Volume2, VolumeX, Settings, Eye, WifiOff, Wifi } from 'lucide-react';
 import { useStoryProgress } from '@/hooks/useProgress';
 import { useSettings } from '@/hooks/useSettings';
@@ -53,7 +52,6 @@ interface StoryReaderProps {
   story: Story;
   initialMode?: DisplayMode;
   onModeChange?: (mode: DisplayMode) => void;
-  onProgressUpdate?: (paragraph: number) => void;
   showHeader?: boolean;
 }
 
@@ -61,24 +59,45 @@ export function StoryReader({
   story, 
   initialMode = 'bilingual', 
   onModeChange,
-  onProgressUpdate,
   showHeader = true
 }: StoryReaderProps) {
   const [mode, setMode] = useState<DisplayMode>(initialMode);
   const [visibleTranslations, setVisibleTranslations] = useState<Set<number>>(new Set());
-  const [currentParagraph, setCurrentParagraph] = useState(0);
-  const [readingStartTime, setReadingStartTime] = useState<number>(0);
-  const [readingSession, setReadingSession] = useState<{ startTime: number; startParagraph: number } | null>(null);
+  const [isStoryMarked, setIsStoryMarked] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  const [visibleParagraphsCount, setVisibleParagraphsCount] = useState(10); // Initially show 10 paragraphs
   const paragraphRefs = useRef<(HTMLDivElement | null)[]>([]);
   
   // Hooks
-  const { progress, updateStoryProgress, startReadingSession, endReadingSession } = useStoryProgress(story.id);
+  const { progress, updateStoryProgress } = useStoryProgress(story.id);
+  
+  // Mark story as started when component loads
+  useEffect(() => {
+    if (!isStoryMarked) {
+      const totalParagraphs = Math.max(
+        story.content.en?.length || 0,
+        story.content.tr?.length || 0
+      );
+      
+      // Mark story as started with minimal progress
+      updateStoryProgress({
+        lastParagraph: 1,
+        totalParagraphs,
+        completionPercentage: Math.round((1 / totalParagraphs) * 100),
+        readingTimeSeconds: 0,
+        wordsRead: 0,
+        language: mode === 'turkish' ? 'tr' : 'en',
+        status: 'STARTED'
+      });
+      
+      setIsStoryMarked(true);
+    }
+  }, [story.id, isStoryMarked, updateStoryProgress, mode, story.content]);
   const { settings } = useSettings();
   const { isOnline } = useOfflineReading();
 
-  // Initialize from user settings and progress
+  // Initialize from user settings
   useEffect(() => {
     if (settings.defaultReadingLanguage !== 'bilingual') {
       const modeMap: Record<string, DisplayMode> = {
@@ -93,39 +112,8 @@ export function StoryReader({
     if (settings.autoPlayAudio) {
       setIsAudioEnabled(true);
     }
-    
-    if (progress?.lastParagraph && progress.lastParagraph > 0) {
-      setCurrentParagraph(progress.lastParagraph - 1);
-      // Scroll to last read position
-      setTimeout(() => {
-        paragraphRefs.current[progress.lastParagraph - 1]?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-      }, 500);
-    }
-  }, [settings, progress]);
+  }, [settings]);
 
-  // Start reading session when component mounts
-  useEffect(() => {
-    const session = startReadingSession();
-    setReadingSession(session);
-    setReadingStartTime(Date.now());
-    
-    return () => {
-      // End reading session when component unmounts
-      if (session) {
-        const totalParagraphs = Math.max(
-          story.content.en?.length || 0,
-          story.content.tr?.length || 0
-        );
-        const wordsRead = calculateWordsRead(session.startParagraph, currentParagraph);
-        const currentLang = mode === 'turkish' ? 'tr' : 'en';
-        
-        endReadingSession(session, currentParagraph, totalParagraphs, currentLang, wordsRead);
-      }
-    };
-  }, []);
 
   const handleModeChange = (newMode: DisplayMode) => {
     setMode(newMode);
@@ -134,18 +122,6 @@ export function StoryReader({
     setVisibleTranslations(new Set());
   };
 
-  // Helper function to calculate words read
-  const calculateWordsRead = useCallback((startParagraph: number, endParagraph: number): number => {
-    const currentLang = mode === 'turkish' ? 'tr' : 'en';
-    let totalWords = 0;
-    
-    for (let i = startParagraph; i <= endParagraph; i++) {
-      const paragraph = story.content[currentLang]?.[i] || '';
-      totalWords += paragraph.split(' ').length;
-    }
-    
-    return totalWords;
-  }, [story.content, mode]);
 
   // Text selection handler
   const handleTextSelection = useCallback(() => {
@@ -177,55 +153,7 @@ export function StoryReader({
     setVisibleTranslations(newVisible);
   };
 
-  // Track reading progress with intersection observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const paragraphIndex = parseInt(entry.target.getAttribute('data-paragraph') || '0');
-            if (paragraphIndex > currentParagraph) {
-              setCurrentParagraph(paragraphIndex);
-              onProgressUpdate?.(paragraphIndex + 1); // +1 because we want 1-based indexing
-              
-              // Update progress in backend periodically (every 5 paragraphs or on completion)
-              const totalParagraphs = Math.max(
-                story.content.en?.length || 0,
-                story.content.tr?.length || 0
-              );
-              
-              if (paragraphIndex % 5 === 0 || paragraphIndex >= totalParagraphs - 1) {
-                const completionPercentage = Math.round(((paragraphIndex + 1) / totalParagraphs) * 100);
-                const currentLang = mode === 'turkish' ? 'tr' : 'en';
-                const wordsRead = readingSession ? calculateWordsRead(readingSession.startParagraph, paragraphIndex) : 0;
-                const readingTime = readingSession ? Math.floor((Date.now() - readingSession.startTime) / 1000) : 0;
-                
-                updateStoryProgress({
-                  lastParagraph: paragraphIndex + 1,
-                  totalParagraphs,
-                  completionPercentage,
-                  readingTimeSeconds: readingTime,
-                  wordsRead,
-                  language: currentLang,
-                  status: completionPercentage >= 100 ? 'COMPLETED' : 'STARTED'
-                });
-              }
-            }
-          }
-        });
-      },
-      {
-        threshold: 0.5, // Trigger when 50% of paragraph is visible
-        rootMargin: '-100px 0px -100px 0px' // Only track paragraphs in the middle of viewport
-      }
-    );
 
-    paragraphRefs.current.forEach((ref) => {
-      if (ref) observer.observe(ref);
-    });
-
-    return () => observer.disconnect();
-  }, [currentParagraph, onProgressUpdate]);
 
   // Initialize paragraph refs array
   useEffect(() => {
@@ -243,7 +171,6 @@ export function StoryReader({
   const renderParagraph = (index: number) => {
     const enParagraph = story.content.en?.[index] || '';
     const trParagraph = story.content.tr?.[index] || '';
-    const isCurrentParagraph = index === currentParagraph;
 
     switch (mode) {
       case 'english':
@@ -252,9 +179,7 @@ export function StoryReader({
             key={index} 
             ref={el => paragraphRefs.current[index] = el}
             data-paragraph={index}
-            className={`mb-4 p-4 bg-slate-50 rounded-lg transition-all duration-200 ${
-              isCurrentParagraph ? 'ring-2 ring-blue-300 bg-blue-50' : ''
-            }`}
+            className="mb-4 p-4 bg-slate-50 rounded-lg transition-all duration-200 relative group"
           >
             <div className="flex items-start justify-between">
               <p 
@@ -264,31 +189,34 @@ export function StoryReader({
               >
                 {enParagraph}
               </p>
-              {isAudioEnabled && enParagraph && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => speakText(enParagraph, 'en')}
-                  className="ml-2 h-6 w-6 p-0"
-                  title="Read aloud"
-                >
-                  <Volume2 className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
-            {trParagraph && (
-              <div className="mt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleTranslation(index)}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  {visibleTranslations.has(index) ? 'Hide Turkish' : 'Show Turkish'}
-                </Button>
-                {visibleTranslations.has(index) && (
-                  <p className="mt-2 text-gray-600 italic leading-relaxed">{trParagraph}</p>
+              <div className="flex items-center gap-1">
+                {trParagraph && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleTranslation(index)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs text-blue-600 hover:text-blue-800 h-6 px-2"
+                    title={visibleTranslations.has(index) ? 'Hide Turkish' : 'Show Turkish'}
+                  >
+                    {visibleTranslations.has(index) ? 'Hide TR' : 'Show TR'}
+                  </Button>
                 )}
+                {isAudioEnabled && enParagraph && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => speakText(enParagraph, 'en')}
+                    className="ml-1 h-6 w-6 p-0"
+                    title="Read aloud"
+                  >
+                    <Volume2 className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            {trParagraph && visibleTranslations.has(index) && (
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <p className="text-gray-600 italic leading-relaxed">{trParagraph}</p>
               </div>
             )}
           </div>
@@ -300,9 +228,7 @@ export function StoryReader({
             key={index} 
             ref={el => paragraphRefs.current[index] = el}
             data-paragraph={index}
-            className={`mb-4 p-4 bg-slate-50 rounded-lg transition-all duration-200 ${
-              isCurrentParagraph ? 'ring-2 ring-blue-300 bg-blue-50' : ''
-            }`}
+            className="mb-4 p-4 bg-slate-50 rounded-lg transition-all duration-200 relative group"
           >
             <div className="flex items-start justify-between">
               <p 
@@ -312,31 +238,34 @@ export function StoryReader({
               >
                 {trParagraph}
               </p>
-              {isAudioEnabled && trParagraph && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => speakText(trParagraph, 'tr')}
-                  className="ml-2 h-6 w-6 p-0"
-                  title="Read aloud"
-                >
-                  <Volume2 className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
-            {enParagraph && (
-              <div className="mt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleTranslation(index)}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  {visibleTranslations.has(index) ? 'Hide English' : 'Show English'}
-                </Button>
-                {visibleTranslations.has(index) && (
-                  <p className="mt-2 text-gray-600 italic leading-relaxed">{enParagraph}</p>
+              <div className="flex items-center gap-1">
+                {enParagraph && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleTranslation(index)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs text-blue-600 hover:text-blue-800 h-6 px-2"
+                    title={visibleTranslations.has(index) ? 'Hide English' : 'Show English'}
+                  >
+                    {visibleTranslations.has(index) ? 'Hide EN' : 'Show EN'}
+                  </Button>
                 )}
+                {isAudioEnabled && trParagraph && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => speakText(trParagraph, 'tr')}
+                    className="ml-1 h-6 w-6 p-0"
+                    title="Read aloud"
+                  >
+                    <Volume2 className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            {enParagraph && visibleTranslations.has(index) && (
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <p className="text-gray-600 italic leading-relaxed">{enParagraph}</p>
               </div>
             )}
           </div>
@@ -348,9 +277,7 @@ export function StoryReader({
             key={index} 
             ref={el => paragraphRefs.current[index] = el}
             data-paragraph={index}
-            className={`mb-6 p-4 bg-slate-50 rounded-lg transition-all duration-200 ${
-              isCurrentParagraph ? 'ring-2 ring-blue-300 bg-blue-50' : ''
-            }`}
+            className="mb-6 p-4 bg-slate-50 rounded-lg transition-all duration-200"
           >
             {enParagraph && (
               <div className="flex items-start justify-between mb-3">
@@ -409,9 +336,22 @@ export function StoryReader({
     story.content.tr?.length || 0
   );
 
+  const isLongStory = maxParagraphs > 20;
+  const paragraphsToShow = Math.min(visibleParagraphsCount, maxParagraphs);
+  const hasMoreParagraphs = paragraphsToShow < maxParagraphs;
+
   const displayLang = getDisplayLanguage();
   const title = story.title[displayLang] || Object.values(story.title)[0] || 'Untitled';
   const description = story.shortDescription[displayLang] || Object.values(story.shortDescription)[0] || '';
+
+  const loadMoreParagraphs = () => {
+    const newVisibleCount = Math.min(visibleParagraphsCount + 10, maxParagraphs);
+    setVisibleParagraphsCount(newVisibleCount);
+  };
+
+  const showAllParagraphs = () => {
+    setVisibleParagraphsCount(maxParagraphs);
+  };
 
   return (
     <div className="max-w-4xl mx-auto" data-testid="story-reader">
@@ -477,19 +417,6 @@ export function StoryReader({
                 ))}
               </div>
 
-              {/* Reading Progress */}
-              {progress && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Reading Progress</span>
-                    <span className="font-medium">{Math.round(progress.completionPercentage || 0)}%</span>
-                  </div>
-                  <Progress value={progress.completionPercentage || 0} className="h-2" />
-                  <div className="text-xs text-gray-500">
-                    Paragraph {currentParagraph + 1} of {maxParagraphs}
-                  </div>
-                </div>
-              )}
 
               {/* Reading Controls */}
               <div className="flex items-center justify-between">
@@ -544,9 +471,68 @@ export function StoryReader({
       {/* Story content */}
       <Card>
         <CardContent className="p-6">
+          {/* Long story warning */}
+          {isLongStory && visibleParagraphsCount === 10 && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-blue-900 mb-1">Long Story ({maxParagraphs} paragraphs)</h3>
+                  <p className="text-sm text-blue-700">
+                    This story has many paragraphs. We're showing the first 10 to improve loading time.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={loadMoreParagraphs}
+                    className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                  >
+                    Load 10 More
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={showAllParagraphs}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Show All
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="prose max-w-none" data-testid="story-content">
-            {Array.from({ length: maxParagraphs }, (_, index) => renderParagraph(index))}
+            {Array.from({ length: paragraphsToShow }, (_, index) => renderParagraph(index))}
           </div>
+          
+          {/* Load more button */}
+          {hasMoreParagraphs && (
+            <div className="mt-8 text-center w-full">
+              <div className="mb-4 text-sm text-gray-600">
+                Showing {paragraphsToShow} of {maxParagraphs} paragraphs
+              </div>
+              <div className="flex flex-col sm:flex-row justify-center gap-3 px-4">
+                <Button 
+                  variant="outline" 
+                  onClick={loadMoreParagraphs}
+                  className="flex items-center justify-center gap-2 min-w-fit whitespace-nowrap"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Load 10 More Paragraphs
+                </Button>
+                <Button 
+                  variant="default" 
+                  onClick={showAllParagraphs}
+                  className="flex items-center justify-center gap-2 min-w-fit whitespace-nowrap"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Show All ({maxParagraphs - paragraphsToShow} remaining)
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
