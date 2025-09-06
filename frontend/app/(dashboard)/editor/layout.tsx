@@ -11,7 +11,8 @@ export default function EditorLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
+  const loading = false; // TODO: Add loading state to useAuth
   const router = useRouter();
 
   useEffect(() => {

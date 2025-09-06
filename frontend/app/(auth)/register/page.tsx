@@ -272,20 +272,28 @@ export default function RegisterPage() {
                 <Checkbox
                   id="acceptTerms"
                   checked={formData.acceptTerms}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, acceptTerms: checked as boolean })
+                  onChange={(e) =>
+                    setFormData({ ...formData, acceptTerms: e.target.checked })
                   }
                 />
                 <div className="text-sm">
                   <Label htmlFor="acceptTerms" className="cursor-pointer">
                     I agree to the{' '}
-                    <Link href="/terms" className="text-blue-600 hover:text-blue-500">
+                    <button 
+                      type="button"
+                      className="text-blue-600 hover:text-blue-500" 
+                      onClick={() => alert('Terms of Service page coming soon!')}
+                    >
                       Terms of Service
-                    </Link>{' '}
+                    </button>{' '}
                     and{' '}
-                    <Link href="/privacy" className="text-blue-600 hover:text-blue-500">
+                    <button 
+                      type="button"
+                      className="text-blue-600 hover:text-blue-500"
+                      onClick={() => alert('Privacy Policy page coming soon!')}
+                    >
                       Privacy Policy
-                    </Link>
+                    </button>
                   </Label>
                 </div>
               </div>

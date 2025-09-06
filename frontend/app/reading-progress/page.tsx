@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProgress } from '@/hooks/useProgress';
-import { BookOpen, BookCheck, Clock, Target, TrendingUp } from 'lucide-react';
+import { BookOpen, Clock, Target, TrendingUp, CheckCircle } from 'lucide-react';
 
 export default function ReadingProgressPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -108,7 +108,7 @@ export default function ReadingProgressPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Stories Read</CardTitle>
-                <BookCheck className="h-4 w-4 text-muted-foreground" />
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{completedStories.length}</div>
@@ -282,7 +282,7 @@ export default function ReadingProgressPage() {
                               {progress.story.title?.en || progress.story.title?.tr || 'Untitled'}
                             </Link>
                             <div className="flex items-center gap-2">
-                              <BookCheck className="h-5 w-5 text-green-600" />
+                              <CheckCircle className="h-5 w-5 text-green-600" />
                               <span className="text-sm text-green-600 font-medium">Completed</span>
                             </div>
                           </div>

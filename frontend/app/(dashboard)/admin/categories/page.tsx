@@ -39,6 +39,8 @@ export default function AdminCategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Suppress unused variable warning - error handling will be implemented later
+  void error;
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);

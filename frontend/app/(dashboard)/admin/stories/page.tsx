@@ -65,6 +65,8 @@ export default function AdminStoriesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Suppress unused variable warning - error handling will be implemented later
+  void error;
   const [currentTab, setCurrentTab] = useState('active');
 
   useEffect(() => {

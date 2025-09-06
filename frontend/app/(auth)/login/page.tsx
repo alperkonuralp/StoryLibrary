@@ -161,12 +161,13 @@ export default function LoginPage() {
             {/* Links */}
             <div className="mt-6 space-y-2 text-center text-sm">
               <div>
-                <Link
-                  href="/forgot-password"
+                <button
+                  type="button"
                   className="text-blue-600 hover:text-blue-500"
+                  onClick={() => alert('Password reset feature coming soon!')}
                 >
                   Forgot your password?
-                </Link>
+                </button>
               </div>
               <div>
                 Don't have an account?{' '}
