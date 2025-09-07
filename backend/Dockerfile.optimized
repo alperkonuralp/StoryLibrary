@@ -1,0 +1,62 @@
+# Optimized Backend Dockerfile - Multi-stage build to reduce final image size
+FROM node:18-alpine3.17 AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install build dependencies (only needed during compilation)
+RUN apk add --no-cache python3 make g++ openssl-dev libc6-compat
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Set Prisma binary target and generate Prisma client
+ENV PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3.0.x
+RUN rm -rf node_modules/.prisma node_modules/@prisma/client/index.d.ts || true
+RUN PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3.0.x npx prisma generate --schema=prisma/schema.prisma
+
+# Build TypeScript
+RUN npm run build
+
+# Remove dev dependencies to reduce size
+RUN npm prune --production
+
+# Production stage - minimal runtime image
+FROM node:18-alpine3.17 AS production
+
+# Install only runtime SSL dependencies (for Prisma)
+RUN apk add --no-cache openssl
+
+# Create app directory
+WORKDIR /app
+
+# Copy built application and production dependencies
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/prisma ./prisma
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+
+# Change ownership of app directory
+RUN chown -R nextjs:nodejs /app
+
+# Switch to non-root user
+USER nextjs
+
+# Expose port
+EXPOSE 3001
+
+# Health check (using wget instead of curl to reduce dependencies)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/stories || exit 1
+
+# Start the application
+CMD ["node", "dist/app.js"]
