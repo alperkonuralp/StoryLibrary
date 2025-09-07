@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
     platform: linux/arm64
     env_file:
-      - .env.production
+      - .env.production.lean
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://story_user:09921823ba83b41a3f558dc39560d0d0@postgres:5432/story_library?schema=public
