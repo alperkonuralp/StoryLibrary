@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { 
   User, 
-  Mail, 
   Save, 
   Camera,
   Shield,
