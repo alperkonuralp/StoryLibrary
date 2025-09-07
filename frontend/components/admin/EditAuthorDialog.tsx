@@ -9,7 +9,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 
 interface Author {
   id: string;
@@ -75,19 +74,22 @@ export function EditAuthorDialog({ author, open, onOpenChange, onSave }: EditAut
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const authorData = {
+    const authorData: any = {
       name: formData.name,
       bio: {
         en: formData.bioEn,
         tr: formData.bioTr,
       },
-      imageUrl: formData.imageUrl || undefined,
       socialLinks: {
         website: formData.website || undefined,
         twitter: formData.twitter || undefined,
         linkedin: formData.linkedin || undefined,
       },
     };
+    
+    if (formData.imageUrl) {
+      authorData.imageUrl = formData.imageUrl;
+    }
 
     onSave(authorData);
     onOpenChange(false);

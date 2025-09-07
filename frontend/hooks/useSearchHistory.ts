@@ -54,7 +54,7 @@ export const useSearchHistory = () => {
     const newItem: SearchHistoryItem = {
       query: query.trim(),
       timestamp: Date.now(),
-      filters
+      filters: filters || {}
     };
 
     setSearchHistory(prev => {

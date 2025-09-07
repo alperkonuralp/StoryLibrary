@@ -6,18 +6,13 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { 
   Users, 
   UserPlus, 
   Search, 
-  Calendar, 
-  BookOpen, 
-  Star,
   TrendingUp,
   Heart,
-  Eye,
   ArrowLeft,
   Filter
 } from 'lucide-react';
@@ -84,7 +79,7 @@ export default function SocialFollowingPage() {
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
       const response = await fetch(`${API_BASE_URL}/authors/suggested?limit=10`, {
         headers: {
-          'Authorization': `Bearer ${user.token}`,
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
           'Content-Type': 'application/json',
         },
       });
@@ -247,7 +242,7 @@ export default function SocialFollowingPage() {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-gray-900 truncate">
                               <Link 
-                                href={`/authors/${author.id}`}
+                                href={`/authors/${author.id}` as any}
                                 className="hover:text-blue-600"
                               >
                                 {getAuthorDisplayName(author)}
@@ -339,7 +334,7 @@ export default function SocialFollowingPage() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 truncate">
                             <Link 
-                              href={`/authors/${follower.id}`}
+                              href={`/authors/${follower.id}` as any}
                               className="hover:text-blue-600"
                             >
                               {getAuthorDisplayName(follower)}
@@ -424,7 +419,7 @@ export default function SocialFollowingPage() {
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-semibold text-gray-900 truncate">
                                   <Link 
-                                    href={`/authors/${author.id}`}
+                                    href={`/authors/${author.id}` as any}
                                     className="hover:text-blue-600"
                                   >
                                     {getAuthorDisplayName(author)}

@@ -194,7 +194,9 @@ export const useStoryEditor = (): UseStoryEditorReturn => {
 
     const currentParagraphs = [...story.content[language]];
     const [movedParagraph] = currentParagraphs.splice(fromIndex, 1);
-    currentParagraphs.splice(toIndex, 0, movedParagraph);
+    if (movedParagraph !== undefined) {
+      currentParagraphs.splice(toIndex, 0, movedParagraph);
+    }
 
     updateContent(language, currentParagraphs);
   }, [story, updateContent]);
@@ -369,15 +371,14 @@ export const useStoryEditor = (): UseStoryEditorReturn => {
   const duplicateStory = useCallback(() => {
     if (!story) return;
 
+    const { id, publishedAt, ...storyWithoutId } = story;
     const duplicatedStory = {
-      ...story,
-      id: undefined,
+      ...storyWithoutId,
       title: {
         en: `${story.title.en} (Copy)`,
         tr: `${story.title.tr} (Kopya)`,
       },
       status: 'draft' as const,
-      publishedAt: undefined,
     };
 
     setStory(duplicatedStory);

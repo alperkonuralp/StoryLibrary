@@ -27,7 +27,7 @@ export function useUsers() {
       
       const response = await apiClient.getUsers();
       
-      if (response.success) {
+      if (response.success && response.data) {
         setUsers(response.data);
       } else {
         setError(response.error?.message || 'Failed to fetch users');

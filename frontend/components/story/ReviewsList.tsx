@@ -4,7 +4,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { StarRating } from './StarRating';
-import { MessageCircle, User, Calendar, MoreVertical } from 'lucide-react';
+import { MessageCircle, Calendar, MoreVertical } from 'lucide-react';
 
 interface Rating {
   id: string;

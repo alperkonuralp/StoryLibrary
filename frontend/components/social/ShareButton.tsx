@@ -23,7 +23,7 @@ interface ShareButtonProps {
   storySlug: string;
   title: string;
   description: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
   variant?: 'default' | 'outline' | 'ghost';
   showLabel?: boolean;
   position?: 'bottom' | 'top' | 'left' | 'right';
@@ -43,7 +43,7 @@ export function ShareButton({
   storySlug,
   title,
   description,
-  size = 'md',
+  size = 'default',
   variant = 'outline',
   showLabel = true,
   position = 'bottom',
@@ -202,7 +202,7 @@ export function ShareButton({
             </div>
 
             {/* Native Share API (Mobile) */}
-            {navigator.share && (
+            {typeof navigator !== 'undefined' && 'share' in navigator && (
               <div className="mb-3 pb-3 border-b">
                 <button
                   onClick={handleNativeShare}
@@ -282,7 +282,7 @@ export function ShareButtonCompact({
 
   const handleQuickShare = async () => {
     // Try native share first (mobile), fallback to copy
-    if (navigator.share) {
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
       const success = await shareWithNativeAPI(shareData);
       if (success) {
         await trackShare(storyId, 'native');

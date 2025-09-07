@@ -18,8 +18,6 @@ import {
   BookOpen, 
  
   Star, 
-  Target, 
-  Calendar,
   Lock,
   Trash2,
   Save,
@@ -30,7 +28,7 @@ import {
 } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
   const { 
     profile, 
@@ -125,14 +123,6 @@ export default function ProfilePage() {
     });
   };
 
-  const formatReadingTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  };
 
   if (isLoading) {
     return (

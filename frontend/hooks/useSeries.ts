@@ -13,7 +13,7 @@ export function useSeries() {
       
       const response = await apiClient.getSeries();
       
-      if (response.success) {
+      if (response.success && response.data) {
         setSeries(response.data);
       } else {
         setError(response.error?.message || 'Failed to fetch series');

@@ -16,10 +16,10 @@ import {
 import { cn } from '@/lib/utils';
 
 const navigation = [
-  { name: 'Dashboard', href: '/editor', icon: BarChart3 },
-  { name: 'My Stories', href: '/editor/stories', icon: BookOpen },
-  { name: 'New Story', href: '/editor/stories/new', icon: PlusCircle },
-  { name: 'Settings', href: '/editor/settings', icon: Settings },
+  { name: 'Dashboard', href: '/editor' as const, icon: BarChart3 },
+  { name: 'My Stories', href: '/editor/stories' as const, icon: BookOpen },
+  { name: 'New Story', href: '/editor/stories/new' as const, icon: PlusCircle },
+  { name: 'Settings', href: '/editor/settings' as const, icon: Settings },
 ];
 
 export default function EditorNavigation() {

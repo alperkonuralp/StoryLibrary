@@ -6,11 +6,9 @@ import Navigation from '@/components/Navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/hooks/useSettings';
@@ -24,7 +22,6 @@ import {
   Download,
   Upload,
   RefreshCw,
-  Save,
   Volume2,
   Eye,
   Type,
@@ -36,13 +33,11 @@ import {
 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const {
     settings,
-    loading,
     error,
-    saveSettings,
     updateSetting,
     resetSettings,
     exportSettings,
@@ -50,7 +45,6 @@ export default function SettingsPage() {
   } = useSettings();
 
   const [activeTab, setActiveTab] = useState('general');
-  const [fileInput, setFileInput] = useState<File | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -445,7 +439,7 @@ export default function SettingsPage() {
                           <div className="px-4">
                             <Slider
                               value={[settings.dailyGoal]}
-                              onValueChange={([value]) => updateSetting('dailyGoal', value)}
+                              onValueChange={([value]) => value !== undefined && updateSetting('dailyGoal', value)}
                               max={120}
                               min={5}
                               step={5}

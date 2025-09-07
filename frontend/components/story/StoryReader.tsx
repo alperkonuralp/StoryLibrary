@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Languages, BookOpen, Clock, User, Star, Volume2, VolumeX, Settings, Eye, WifiOff, Wifi } from 'lucide-react';
+import { Languages, BookOpen, Clock, User, Star, Volume2, VolumeX, Eye, WifiOff, Wifi } from 'lucide-react';
 import { useStoryProgress } from '@/hooks/useProgress';
 import { useSettings } from '@/hooks/useSettings';
 import { useOfflineReading } from '@/hooks/useOfflineReading';
@@ -64,13 +64,12 @@ export function StoryReader({
   const [mode, setMode] = useState<DisplayMode>(initialMode);
   const [visibleTranslations, setVisibleTranslations] = useState<Set<number>>(new Set());
   const [isStoryMarked, setIsStoryMarked] = useState(false);
-  const [selectedText, setSelectedText] = useState('');
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [visibleParagraphsCount, setVisibleParagraphsCount] = useState(10); // Initially show 10 paragraphs
   const paragraphRefs = useRef<(HTMLDivElement | null)[]>([]);
   
   // Hooks
-  const { progress, updateStoryProgress } = useStoryProgress(story.id);
+  const { updateStoryProgress } = useStoryProgress(story.id);
   
   // Mark story as started when component loads
   useEffect(() => {
@@ -125,10 +124,7 @@ export function StoryReader({
 
   // Text selection handler
   const handleTextSelection = useCallback(() => {
-    const selection = window.getSelection();
-    if (selection && selection.toString().trim()) {
-      setSelectedText(selection.toString().trim());
-    }
+    // Text selection logic can be added here if needed
   }, []);
 
   // Audio reading functions
@@ -177,7 +173,7 @@ export function StoryReader({
         return (
           <div 
             key={index} 
-            ref={el => paragraphRefs.current[index] = el}
+            ref={el => { paragraphRefs.current[index] = el; }}
             data-paragraph={index}
             className="mb-4 p-4 bg-slate-50 rounded-lg transition-all duration-200 relative group"
           >
@@ -226,7 +222,7 @@ export function StoryReader({
         return (
           <div 
             key={index} 
-            ref={el => paragraphRefs.current[index] = el}
+            ref={el => { paragraphRefs.current[index] = el; }}
             data-paragraph={index}
             className="mb-4 p-4 bg-slate-50 rounded-lg transition-all duration-200 relative group"
           >
@@ -275,7 +271,7 @@ export function StoryReader({
         return (
           <div 
             key={index} 
-            ref={el => paragraphRefs.current[index] = el}
+            ref={el => { paragraphRefs.current[index] = el; }}
             data-paragraph={index}
             className="mb-6 p-4 bg-slate-50 rounded-lg transition-all duration-200"
           >

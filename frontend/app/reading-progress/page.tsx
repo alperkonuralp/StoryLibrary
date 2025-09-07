@@ -14,7 +14,7 @@ import { useProgress } from '@/hooks/useProgress';
 import { BookOpen, Clock, Target, TrendingUp, CheckCircle } from 'lucide-react';
 
 export default function ReadingProgressPage() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const { progressList, loading, error, fetchProgress, deleteProgress } = useProgress();
   const [activeTab, setActiveTab] = useState('all');

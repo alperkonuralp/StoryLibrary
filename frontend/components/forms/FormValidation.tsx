@@ -231,7 +231,7 @@ export function useFormValidation<T extends Record<string, any>>(
 
 // Common validation rules
 export const ValidationRules = {
-  required: <T>(message = 'This field is required') => (value: T): string | null => {
+  required: (message = 'This field is required') => (value: any): string | null => {
     if (value === null || value === undefined || value === '') {
       return message;
     }

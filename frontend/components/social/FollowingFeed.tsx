@@ -10,13 +10,9 @@ import {
   Calendar, 
   User, 
   Eye, 
-  Star, 
-  Clock,
   TrendingUp,
   Users,
-  RefreshCw,
-  Heart,
-  MessageCircle
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthorFollow } from '@/hooks/useAuthorFollow';
@@ -177,7 +173,7 @@ export function FollowingFeed({
                     <BookOpen className="h-4 w-4 text-green-600" />
                     <span className="text-sm text-gray-600">
                       <Link 
-                        href={`/authors/${item.author.id}`}
+                        href={`/authors/${item.author.id}` as any}
                         className="font-medium text-gray-900 hover:text-blue-600"
                       >
                         {authorName}
@@ -231,8 +227,8 @@ export function FollowingFeed({
                           <ShareButtonCompact
                             storyId={item.story.id}
                             storySlug={item.story.slug}
-                            title={item.story.title.en || item.story.title.tr}
-                            description={item.story.shortDescription.en || item.story.shortDescription.tr}
+                            title={item.story.title.en || item.story.title.tr || 'Untitled'}
+                            description={item.story.shortDescription.en || item.story.shortDescription.tr || 'No description'}
                           />
                           <Link
                             href={`/stories/${item.story.slug}`}
@@ -285,14 +281,14 @@ export function FollowingFeed({
                 <div className="flex-1">
                   <span className="text-sm text-gray-600">
                     <Link 
-                      href={`/authors/${item.author.id}`}
+                      href={`/authors/${item.author.id}` as any}
                       className="font-medium text-gray-900 hover:text-blue-600"
                     >
                       {authorName}
                     </Link>
                     {' '}followed{' '}
                     <Link 
-                      href={`/authors/${item.targetAuthor?.id}`}
+                      href={`/authors/${item.targetAuthor?.id}` as any}
                       className="font-medium text-gray-900 hover:text-blue-600"
                     >
                       {item.targetAuthor?.name}

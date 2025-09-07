@@ -1,12 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { BookOpen, Clock, User, Star, Languages, Bookmark, BookmarkCheck, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Clock, User, Languages, Bookmark, BookmarkCheck, CheckCircle2 } from 'lucide-react';
 import { useStoryProgress } from '@/hooks/useProgress';
 import { useStoryBookmark } from '@/hooks/useBookmarks';
 import { StarRating } from './StarRating';
@@ -35,7 +34,7 @@ interface Story {
     tag: {
       id: string;
       name: Record<string, string>;
-      color: string;
+      color?: string;
       slug: string;
     };
   }>;
@@ -79,7 +78,7 @@ export function StoryCard({
   const description = story.shortDescription[language] || Object.values(story.shortDescription)[0] || '';
   
   // Progress and bookmark hooks
-  const { progress, loading: progressLoading } = useStoryProgress(story.id);
+  const { progress } = useStoryProgress(story.id);
   const { isBookmarked, loading: bookmarkLoading, toggle: toggleBookmark } = useStoryBookmark(story.id);
 
   const formatDate = (dateString: string) => {
@@ -103,7 +102,7 @@ export function StoryCard({
           <div className="flex items-start justify-between">
             <CardTitle className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors flex-1 mr-2">
               <Link href={`/stories/${story.slug}`}>
-                <SearchHighlight text={title} searchTerm={searchTerm} />
+                <SearchHighlight text={title} searchTerm={searchTerm || ''} />
               </Link>
             </CardTitle>
             
@@ -150,7 +149,7 @@ export function StoryCard({
           
           {showDescription && description && (
             <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
-              <SearchHighlight text={description} searchTerm={searchTerm} />
+              <SearchHighlight text={description} searchTerm={searchTerm || ''} />
             </p>
           )}
 
@@ -247,7 +246,7 @@ export function StoryCard({
           )}
 
           {/* Social Actions */}
-          {story.authors && story.authors.length > 0 && (
+          {story.authors && story.authors.length > 0 && story.authors[0]?.author && (
             <div className="flex items-center justify-between pt-2 border-t border-gray-100">
               <div className="flex items-center space-x-3">
                 <FollowButtonCompact
@@ -257,8 +256,8 @@ export function StoryCard({
                 <ShareButtonCompact
                   storyId={story.id}
                   storySlug={story.slug}
-                  title={story.title[language] || Object.values(story.title)[0]}
-                  description={story.shortDescription[language] || Object.values(story.shortDescription)[0]}
+                  title={story.title[language] || Object.values(story.title)[0] || 'Untitled'}
+                  description={story.shortDescription[language] || Object.values(story.shortDescription)[0] || 'No description'}
                 />
               </div>
             </div>

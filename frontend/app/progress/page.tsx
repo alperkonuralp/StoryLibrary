@@ -9,7 +9,6 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BookOpen, Clock, CheckCircle, ArrowRight, Star, Trash2 } from 'lucide-react';
 import { useAllReadingProgress, useProgressCalculations } from '@/hooks/useReadingProgress';
-import { cn } from '@/lib/utils';
 import Navigation from '@/components/Navigation';
 
 interface ProgressCardProps {
@@ -141,7 +140,7 @@ export default function ProgressPage() {
     refetch: refetchCompleted
   } = useAllReadingProgress('COMPLETED');
 
-  const handleDeleteProgress = async (storyId: string) => {
+  const handleDeleteProgress = async (_storyId: string) => {
     // This would call the delete API and refresh the lists
     // For now, we'll just refresh the data
     refetchAll();

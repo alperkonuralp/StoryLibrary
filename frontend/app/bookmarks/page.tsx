@@ -15,7 +15,6 @@ import {
   Star,
   Clock,
   Filter,
-  MoreVertical,
   Calendar,
   Tag,
   User
@@ -24,7 +23,7 @@ import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
 export default function BookmarksPage() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const { bookmarks, loading, error, pagination, fetchBookmarks, removeBookmark } = useBookmarks();
   const [searchQuery, setSearchQuery] = useState('');

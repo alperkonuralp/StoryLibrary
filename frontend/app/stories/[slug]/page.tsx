@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { StoryReader } from '@/components/story/StoryReader';
 import { StoryRating } from '@/components/story/StoryRating';
-import { BookOpen, ArrowLeft, Heart, Share2, Bookmark, Star, UserPlus } from 'lucide-react';
+import { ArrowLeft, Bookmark, Star, UserPlus } from 'lucide-react';
 import { useStory } from '@/hooks/useStories';
 import { useStoryBookmark } from '@/hooks/useBookmarks';
 import { ShareButton } from '@/components/social/ShareButton';
@@ -30,9 +30,8 @@ export default function StoryPage() {
   const {
     isBookmarked,
     loading: bookmarkLoading,
-    toggleBookmark,
-    error: bookmarkError,
-  } = useStoryBookmark(story?.id);
+    toggle: toggleBookmark,
+  } = useStoryBookmark(story?.id || '');
 
   const handleModeChange = (mode: DisplayMode) => {
     setReadingMode(mode);
@@ -54,20 +53,6 @@ export default function StoryPage() {
     }
   };
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: story.title.en,
-        text: story.shortDescription.en,
-        url: window.location.href,
-      });
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(window.location.href);
-      // Show toast notification
-      alert('Link copied to clipboard!');
-    }
-  };
 
   // Load reading mode preference
   useEffect(() => {
@@ -147,7 +132,7 @@ export default function StoryPage() {
           
           <div className="flex items-center space-x-2">
             <OfflineButton 
-              storyId={story.id}
+              storyId={story?.id || ''}
               size="sm"
               variant="outline"
               showText={true}
@@ -165,10 +150,10 @@ export default function StoryPage() {
             </Button>
             
             <ShareButton
-              storyId={story.id}
-              storySlug={story.slug}
-              title={story.title.en || story.title.tr}
-              description={story.shortDescription.en || story.shortDescription.tr}
+              storyId={story?.id || ''}
+              storySlug={story?.slug || ''}
+              title={story?.title?.en || story?.title?.tr || ''}
+              description={story?.shortDescription?.en || story?.shortDescription?.tr || ''}
               size="sm"
               variant="ghost"
             />
@@ -179,7 +164,7 @@ export default function StoryPage() {
               asChild
               className="flex items-center gap-2"
             >
-              <Link href={`/stories/${slug}/ratings`}>
+              <Link href={`/stories/${slug}/ratings` as any}>
                 <Star className="h-4 w-4" />
                 Reviews
               </Link>
@@ -193,18 +178,20 @@ export default function StoryPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Main Story Reader */}
           <div className="lg:col-span-3">
-            <StoryReader
-              story={story}
-              initialMode={readingMode}
-              onModeChange={handleModeChange}
-              showHeader={true}
-            />
+            {story && (
+              <StoryReader
+                story={story as any}
+                initialMode={readingMode}
+                onModeChange={handleModeChange}
+                showHeader={true}
+              />
+            )}
           </div>
 
           {/* Sidebar with Progress and Rating */}
           <div className="lg:col-span-1 space-y-4">
             {/* Author Info */}
-            {story.authors && story.authors.length > 0 && (
+            {story && story.authors && story.authors.length > 0 && (
               <div className="bg-white rounded-lg border p-4">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <UserPlus className="h-4 w-4 mr-2" />
@@ -219,7 +206,7 @@ export default function StoryPage() {
                         </div>
                         <div>
                           <Link
-                            href={`/authors/${authorRef.author.id}`}
+                            href={`/authors/${authorRef.author.id}` as any}
                             className="font-medium text-gray-900 hover:text-blue-600 text-sm"
                           >
                             {authorRef.author.name}
@@ -245,8 +232,8 @@ export default function StoryPage() {
 
             
             <StoryRating
-              storyId={story.id}
-              storyTitle={story.title.en || story.title.tr}
+              storyId={story?.id || ''}
+              storyTitle={story?.title?.en || story?.title?.tr || ''}
               averageRating={storyRating.average}
               ratingCount={storyRating.count}
               onRatingUpdate={handleRatingUpdate}

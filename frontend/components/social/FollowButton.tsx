@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { UserPlus, UserMinus, Users, Loader2 } from 'lucide-react';
+import { UserPlus, UserMinus, Loader2 } from 'lucide-react';
 import { useAuthorFollow } from '@/hooks/useAuthorFollow';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 interface FollowButtonProps {
   authorId: string;
   authorName: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
   variant?: 'default' | 'outline' | 'ghost';
   showCount?: boolean;
   className?: string;
@@ -19,8 +19,7 @@ interface FollowButtonProps {
 
 export function FollowButton({
   authorId,
-  authorName,
-  size = 'md',
+  size = 'default',
   variant = 'default',
   showCount = false,
   className = '',

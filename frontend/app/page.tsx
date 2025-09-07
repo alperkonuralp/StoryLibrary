@@ -214,13 +214,13 @@ export default function HomePage() {
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link href={"/privacy" as any} className="text-sm text-muted-foreground hover:text-foreground">
               Privacy
             </Link>
-            <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link href={"/terms" as any} className="text-sm text-muted-foreground hover:text-foreground">
               Terms
             </Link>
-            <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link href={"/contact" as any} className="text-sm text-muted-foreground hover:text-foreground">
               Contact
             </Link>
           </div>

@@ -57,6 +57,7 @@ export function useStories(options: UseStoriesOptions = {}): UseStoriesReturn {
       
       return () => clearTimeout(timeoutId);
     }
+    return undefined;
   }, [
     filters?.search,
     filters?.categoryId, 

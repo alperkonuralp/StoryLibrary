@@ -11,11 +11,8 @@ import {
   Wifi, 
   WifiOff, 
   HardDrive, 
-  Calendar,
   Eye,
-  AlertCircle,
-  CheckCircle2,
-  Loader2
+  AlertCircle
 } from 'lucide-react';
 import { useOfflineReading } from '@/hooks/useOfflineReading';
 import Link from 'next/link';
@@ -40,8 +37,6 @@ export function OfflineManager({ className = '', compact = false }: OfflineManag
   const {
     offlineStories,
     isOnline,
-    downloading,
-    loading,
     error,
     removeStory,
     clearAllOfflineStories,
@@ -77,9 +72,9 @@ export function OfflineManager({ className = '', compact = false }: OfflineManag
             </CardTitle>
             <div className="flex items-center gap-2">
               {isOnline ? (
-                <Wifi className="h-4 w-4 text-green-600" title="Online" />
+                <Wifi className="h-4 w-4 text-green-600" />
               ) : (
-                <WifiOff className="h-4 w-4 text-red-600" title="Offline" />
+                <WifiOff className="h-4 w-4 text-red-600" />
               )}
             </div>
           </div>

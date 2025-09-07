@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StarRating } from './StarRating';
-import { X, Star, MessageCircle, Save, Trash2 } from 'lucide-react';
+import { X, MessageCircle, Save, Trash2 } from 'lucide-react';
 
 interface Rating {
   id: string;
@@ -38,7 +38,6 @@ export function RatingModal({
   onSubmit,
   onUpdate,
   onDelete,
-  loading = false,
 }: RatingModalProps) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');

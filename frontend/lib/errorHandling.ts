@@ -20,9 +20,9 @@ export class APIError extends Error implements ApiError {
   ) {
     super(message);
     this.name = 'APIError';
-    this.status = status;
-    this.code = code;
-    this.details = details;
+    if (status !== undefined) this.status = status;
+    if (code !== undefined) this.code = code;
+    if (details !== undefined) this.details = details;
     this.retryable = retryable;
   }
 
@@ -130,7 +130,7 @@ export function createApiClient(baseUrl: string) {
       return this.request<T>(endpoint, {
         ...options,
         method: 'POST',
-        body: body ? JSON.stringify(body) : undefined,
+        body: body ? JSON.stringify(body) : null,
       });
     },
 
@@ -138,7 +138,7 @@ export function createApiClient(baseUrl: string) {
       return this.request<T>(endpoint, {
         ...options,
         method: 'PUT',
-        body: body ? JSON.stringify(body) : undefined,
+        body: body ? JSON.stringify(body) : null,
       });
     },
 

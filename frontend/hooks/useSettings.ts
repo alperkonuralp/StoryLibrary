@@ -166,8 +166,8 @@ export const useSettings = () => {
       // Validate imported settings
       const validSettings = { ...defaultSettings };
       for (const key in importedSettings) {
-        if (key in defaultSettings) {
-          validSettings[key as keyof UserSettings] = importedSettings[key];
+        if (key in defaultSettings && importedSettings[key] !== undefined) {
+          (validSettings as any)[key] = importedSettings[key];
         }
       }
       

@@ -61,6 +61,7 @@ export function ProgressTracker({
 
       return () => clearTimeout(timeoutId);
     }
+    return undefined;
   }, [localProgress, progress, markAsStarted, updateLastParagraph]);
 
   const handleStart = async () => {

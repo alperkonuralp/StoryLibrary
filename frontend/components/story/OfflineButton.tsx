@@ -14,7 +14,7 @@ import {
 
 interface OfflineButtonProps {
   storyId: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
   variant?: 'default' | 'outline' | 'ghost' | 'secondary';
   showText?: boolean;
   compact?: boolean;

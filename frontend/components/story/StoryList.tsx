@@ -103,7 +103,7 @@ export function StoryList({
           showDescription={showDescription}
           showStats={showStats}
           showTags={showTags}
-          searchTerm={searchTerm}
+          searchTerm={searchTerm || ''}
         />
       ))}
     </div>

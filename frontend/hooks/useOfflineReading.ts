@@ -57,7 +57,6 @@ export function useOfflineReading() {
     downloading: new Set(),
     isOnline: navigator.onLine
   });
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Monitor online/offline status
@@ -258,7 +257,6 @@ export function useOfflineReading() {
     offlineStories: state.stories,
     isOnline: state.isOnline,
     downloading: state.downloading,
-    loading,
     error,
     downloadStory,
     removeStory,

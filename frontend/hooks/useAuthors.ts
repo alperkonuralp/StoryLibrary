@@ -13,7 +13,7 @@ export function useAuthors() {
       
       const response = await apiClient.getAuthors();
       
-      if (response.success) {
+      if (response.success && response.data) {
         setAuthors(response.data);
       } else {
         setError(response.error?.message || 'Failed to fetch authors');

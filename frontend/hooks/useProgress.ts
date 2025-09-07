@@ -75,9 +75,11 @@ export const useProgress = () => {
     } catch (err: any) {
       setError(err.message);
       console.error('Error fetching progress:', err);
+      return null;
     } finally {
       setLoading(false);
     }
+    return null;
   }, []);
 
   // Get progress for specific story

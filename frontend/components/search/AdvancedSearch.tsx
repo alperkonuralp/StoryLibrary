@@ -12,15 +12,13 @@ import {
   SlidersHorizontal,
   Star,
   Calendar,
-  BookOpen,
   User,
   Tag,
   Folder,
   Clock,
   Heart,
   Trash2,
-  Save,
-  Plus
+  Save
 } from 'lucide-react';
 import { useCategories } from '@/hooks/useCategories';
 import { useAuthors } from '@/hooks/useAuthors';
@@ -67,9 +65,9 @@ export function AdvancedSearch({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
 
-  const { categories, loading: categoriesLoading } = useCategories();
-  const { authors, loading: authorsLoading } = useAuthors();
-  const { tags, loading: tagsLoading } = useTags();
+  const { categories } = useCategories();
+  const { authors } = useAuthors();
+  const { tags } = useTags();
   const { 
     searchHistory, 
     savedSearches,
@@ -123,29 +121,18 @@ export function AdvancedSearch({
     if (key === 'search' || key === 'categoryId' || key === 'authorId' || key === 'tagId' || key === 'minRating' || key === 'sortBy') {
       // Add to search history when searching
       if (key === 'search' && value && typeof value === 'string' && value.trim()) {
-        addToHistory(value, {
-          categoryId: newFilters.categoryId || undefined,
-          authorId: newFilters.authorId || undefined,
-          tagId: newFilters.tagId || undefined,
-          minRating: newFilters.minRating > 0 ? newFilters.minRating : undefined
-        });
+        const historyContext = {
+          ...(newFilters.categoryId && { categoryId: newFilters.categoryId }),
+          ...(newFilters.authorId && { authorId: newFilters.authorId }),
+          ...(newFilters.tagId && { tagId: newFilters.tagId }),
+          ...(newFilters.minRating > 0 && { minRating: newFilters.minRating })
+        };
+        addToHistory(value, historyContext);
       }
       onSearch(newFilters);
     }
   };
 
-  const handleAdvancedSearch = () => {
-    // Add to search history
-    if (filters.search.trim()) {
-      addToHistory(filters.search, {
-        categoryId: filters.categoryId || undefined,
-        authorId: filters.authorId || undefined,
-        tagId: filters.tagId || undefined,
-        minRating: filters.minRating > 0 ? filters.minRating : undefined
-      });
-    }
-    onSearch(filters);
-  };
 
   const handleClear = () => {
     setFilters(DEFAULT_FILTERS);
@@ -367,7 +354,7 @@ export function AdvancedSearch({
                     Recent Searches
                   </h4>
                   <div className="space-y-1">
-                    {searchHistory.slice(0, 5).map((item, index) => (
+                    {searchHistory.slice(0, 5).map((item) => (
                       <button
                         key={`${item.query}-${item.timestamp}`}
                         onClick={() => handleFilterChange('search', item.query)}
@@ -469,12 +456,13 @@ export function AdvancedSearch({
                     onClick={() => {
                       const name = prompt('Enter a name for this search:');
                       if (name?.trim()) {
-                        saveSearch(name.trim(), filters.search, {
-                          categoryId: filters.categoryId || undefined,
-                          authorId: filters.authorId || undefined,
-                          tagId: filters.tagId || undefined,
-                          minRating: filters.minRating > 0 ? filters.minRating : undefined
-                        });
+                        const saveContext = {
+                          ...(filters.categoryId && { categoryId: filters.categoryId }),
+                          ...(filters.authorId && { authorId: filters.authorId }),
+                          ...(filters.tagId && { tagId: filters.tagId }),
+                          ...(filters.minRating > 0 && { minRating: filters.minRating })
+                        };
+                        saveSearch(name.trim(), filters.search, saveContext);
                       }
                     }}
                   >

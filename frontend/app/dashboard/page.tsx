@@ -24,16 +24,13 @@ import {
   Trophy, 
   Bookmark, 
   TrendingUp,
-  Calendar,
   Star,
-  CheckCircle2,
   PlayCircle,
   Target,
   Zap,
   Heart,
   Users,
   Sparkles,
-  Award,
   BookmarkCheck,
   UserPlus,
   Download
@@ -45,12 +42,12 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
 
   // Hooks for data
-  const { progressList, loading: progressLoading, fetchProgress } = useProgress();
-  const { bookmarks, loading: bookmarksLoading, fetchBookmarks } = useBookmarks();
-  const { stats, fetchStats } = useUserProfile();
+  const { progressList, fetchProgress } = useProgress();
+  const { bookmarks, fetchBookmarks } = useBookmarks();
+  const { fetchStats } = useUserProfile();
   
   // Get recommendations - stories similar to what user has read
-  const { stories: recommendedStories, loading: storiesLoading } = useStories({
+  const { stories: recommendedStories } = useStories({
     filters: { status: 'PUBLISHED', page: 1, limit: 6 }
   });
 
@@ -99,41 +96,10 @@ export default function DashboardPage() {
   const personalizedRecommendations = useMemo(() => {
     if (!recommendedStories || progressList.length === 0) return recommendedStories;
 
-    // Get categories and authors from user's reading history
-    const readCategories = new Set<string>();
-    const readAuthors = new Set<string>();
-    
-    progressList.forEach(progress => {
-      progress.story?.categories?.forEach(cat => {
-        readCategories.add(cat.category.id);
-      });
-      progress.story?.authors?.forEach(auth => {
-        readAuthors.add(auth.author.id);
-      });
-    });
-
-    // Score stories based on similarity to user's reading history
+    // For now, just filter out stories the user has already read
+    // TODO: Implement proper personalized recommendations when progress data includes category/author info
     return recommendedStories
       .filter(story => !progressList.some(p => p.storyId === story.id))
-      .map(story => {
-        let score = 0;
-        
-        // Boost score for matching categories
-        story.categories?.forEach(cat => {
-          if (readCategories.has(cat.category.id)) score += 2;
-        });
-        
-        // Boost score for matching authors
-        story.authors?.forEach(auth => {
-          if (readAuthors.has(auth.author.id)) score += 3;
-        });
-        
-        // Boost score for high ratings
-        if (story.averageRating && story.averageRating >= 4) score += 1;
-        
-        return { ...story, recommendationScore: score };
-      })
-      .sort((a, b) => b.recommendationScore - a.recommendationScore)
       .slice(0, 6);
   }, [recommendedStories, progressList]);
 

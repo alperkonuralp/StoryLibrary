@@ -14,7 +14,7 @@ import { BookOpen, User, LogOut, Settings, Shield, BarChart3, Bookmark, LayoutDa
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Navigation() {
-  const { user, logout, isAuthenticated, isLoading } = useAuth();
+  const { user, logout, isLoading } = useAuth();
 
   const handleLogout = () => {
     logout();

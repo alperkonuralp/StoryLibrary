@@ -1,50 +1,54 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { Badge } from '@/components/ui/badge';
+import { useSearchParams } from 'next/navigation';
 import { StoryList } from '@/components/story/StoryList';
 import { Button } from '@/components/ui/button';
 import Navigation from '@/components/Navigation';
-import { Search, Filter } from 'lucide-react';
 import { useStories } from '@/hooks/useStories';
-import { useCategories } from '@/hooks/useCategories';
-import { useAuthors } from '@/hooks/useAuthors';
 import AdvancedSearch from '@/components/search/AdvancedSearch';
-import type { DisplayMode, StoryFilters } from '@/types';
+import type { StoryFilters } from '@/types';
 
 export default function StoriesPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [storyLanguage, setStoryLanguage] = useState<'en' | 'tr'>('en');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedAuthor, setSelectedAuthor] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string>('');
   const [minRating, setMinRating] = useState<number>(0);
-  const [sortBy, setSortBy] = useState<'createdAt' | 'updatedAt' | 'publishedAt' | 'title' | 'averageRating' | 'ratingCount'>('publishedAt');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'rating' | 'title'>('newest');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Create filters object for API calls
   const filters = useMemo((): StoryFilters => {
-    const filterObj = {
-      search: searchQuery || undefined,
-      categoryId: selectedCategory || undefined,
-      authorId: selectedAuthor || undefined,
-      tagId: selectedTag || undefined,
-      minRating: minRating > 0 ? minRating : undefined,
-      sortBy,
-      sortOrder,
+    // Map sortBy values from AdvancedSearch to API values
+    const apiSortBy = sortBy === 'newest' ? 'publishedAt' : 
+                      sortBy === 'oldest' ? 'publishedAt' :
+                      sortBy === 'rating' ? 'averageRating' : 'title';
+    const apiSortOrder = sortBy === 'oldest' ? 'asc' : sortOrder;
+    
+    const filterObj: StoryFilters = {
+      sortBy: apiSortBy,
+      sortOrder: apiSortOrder,
       language: storyLanguage,
       status: 'PUBLISHED' as const,
       page: 1,
       limit: 20
     };
+    
+    // Only add optional properties if they have values
+    if (searchQuery) filterObj.search = searchQuery;
+    if (selectedCategory) filterObj.categoryId = selectedCategory;
+    if (selectedAuthor) filterObj.authorId = selectedAuthor;
+    if (selectedTag) filterObj.tagId = selectedTag;
+    if (minRating > 0) filterObj.minRating = minRating;
+    
     return filterObj;
   }, [searchQuery, selectedCategory, selectedAuthor, selectedTag, minRating, sortBy, sortOrder, storyLanguage]);
 
   // Fetch stories from API
-  const { stories, loading, error, pagination, refetch } = useStories({ filters });
+  const { stories, loading, error } = useStories({ filters });
   
   // Read URL parameters and update state
   useEffect(() => {
@@ -57,22 +61,7 @@ export default function StoriesPage() {
     setSearchQuery(''); // Clear search when coming from URL
   }, [searchParams]);
   
-  // Fetch categories and authors from API
-  const { categories: categoriesData, loading: categoriesLoading } = useCategories();
-  const { authors: authorsData, loading: authorsLoading } = useAuthors();
   
-  // Get author and category names for display in active filters
-  const selectedAuthorName = useMemo(() => {
-    if (!selectedAuthor || !authorsData) return '';
-    const author = authorsData.find((a: any) => a.id === selectedAuthor);
-    return author ? author.name : selectedAuthor;
-  }, [selectedAuthor, authorsData]);
-  
-  const selectedCategoryName = useMemo(() => {
-    if (!selectedCategory || !categoriesData) return '';
-    const category = categoriesData.find((c: any) => c.id === selectedCategory);
-    return category ? category.name.en : selectedCategory;
-  }, [selectedCategory, categoriesData]);
 
 
   // Toggle story content language (not page interface)
@@ -80,24 +69,8 @@ export default function StoriesPage() {
     setStoryLanguage(storyLanguage === 'en' ? 'tr' : 'en');
   };
 
-  // Search handler - now just updates state, API call is handled by useStories hook
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
 
-  // Category filter handler - now just updates state, API call is handled by useStories hook  
-  const handleCategoryFilter = (categoryId: string) => {
-    setSelectedCategory(categoryId);
-  };
 
-  // Prepare categories for dropdown (interface always English)
-  const categories = useMemo(() => [
-    { id: '', name: 'All Categories' },
-    ...(categoriesData?.map(cat => ({
-      id: cat.id,
-      name: cat.name.en || 'Unknown Category'
-    })) || [])
-  ], [categoriesData]);
 
   return (
     <div className="min-h-screen">
@@ -137,29 +110,8 @@ export default function StoriesPage() {
               setSelectedTag(searchFilters.tagId || '');
               setMinRating(searchFilters.minRating || 0);
               
-              // Map AdvancedSearch sort values to backend API values
-              const mapSortBy = (frontendSort: string) => {
-                switch (frontendSort) {
-                  case 'newest': return 'publishedAt';
-                  case 'oldest': return 'publishedAt';
-                  case 'rating': return 'averageRating';
-                  case 'title': return 'title';
-                  default: return 'publishedAt';
-                }
-              };
-              
-              const mapSortOrder = (frontendSort: string) => {
-                switch (frontendSort) {
-                  case 'newest': return 'desc';
-                  case 'oldest': return 'asc';
-                  case 'rating': return 'desc';
-                  case 'title': return 'asc';
-                  default: return 'desc';
-                }
-              };
-              
-              setSortBy(mapSortBy(searchFilters.sortBy || 'newest'));
-              setSortOrder(mapSortOrder(searchFilters.sortBy || 'newest'));
+              setSortBy(searchFilters.sortBy || 'newest');
+              setSortOrder(searchFilters.sortBy === 'oldest' ? 'asc' : 'desc');
             }}
             onClear={() => {
               setSearchQuery('');
@@ -167,7 +119,7 @@ export default function StoriesPage() {
               setSelectedAuthor('');
               setSelectedTag('');
               setMinRating(0);
-              setSortBy('publishedAt');
+              setSortBy('newest');
               setSortOrder('desc');
             }}
             initialFilters={{
@@ -177,7 +129,6 @@ export default function StoriesPage() {
               tagId: selectedTag,
               minRating,
               sortBy,
-              sortOrder,
               language: storyLanguage
             }}
           />
@@ -194,7 +145,7 @@ export default function StoriesPage() {
         ) : (
           <StoryList
             key={`${selectedAuthor}-${selectedCategory}-${searchQuery}`}
-            stories={stories}
+            stories={stories as any}
             language={storyLanguage}
             loading={loading}
             searchTerm={searchQuery}

@@ -64,6 +64,7 @@ export function ProgressIndicator({
       const interval = setInterval(updateTimeAgo, 60000); // Update every minute
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [progress?.lastReadAt]);
 
   if (!progress) {

@@ -323,7 +323,7 @@ export default function SeriesDetailPage() {
                     {story.categories.map(cat => (
                       <Badge key={cat.category.id} variant="outline" className="text-xs">
                         <Link 
-                          href={`/categories/${cat.category.slug}`}
+                          href={`/categories/${cat.category.slug}` as any}
                           className="hover:text-blue-600"
                         >
                           {cat.category.name.en}

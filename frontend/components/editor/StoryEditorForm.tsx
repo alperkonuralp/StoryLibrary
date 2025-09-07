@@ -36,10 +36,6 @@ interface StoryEditorFormProps {
   className?: string;
 }
 
-interface ValidationError {
-  field: string;
-  message: string;
-}
 
 export function StoryEditorForm({
   storyId,

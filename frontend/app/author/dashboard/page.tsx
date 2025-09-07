@@ -92,7 +92,7 @@ export default function AuthorDashboardPage() {
       // Fetch author statistics
       const statsResponse = await fetch('/api/authors/stats', {
         headers: {
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },
       });
 
@@ -104,7 +104,7 @@ export default function AuthorDashboardPage() {
       // Fetch recent stories
       const storiesResponse = await fetch('/api/stories?author=mine&limit=5&sort=updatedAt', {
         headers: {
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },
       });
 

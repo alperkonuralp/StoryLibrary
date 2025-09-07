@@ -28,9 +28,6 @@ interface StoryRatingProps {
 export function StoryRating({
   storyId,
   storyTitle,
-  initialRating,
-  averageRating = 0,
-  ratingCount = 0,
   onRatingUpdate,
   variant = 'full',
   showReviews = true,
@@ -255,7 +252,7 @@ export function StoryRating({
               loading={loading}
               hasMoreRatings={hasMoreRatings && showAllReviews}
               onLoadMore={loadMoreRatings}
-              currentUserId={user?.id}
+              currentUserId={user?.id || ''}
             />
           </CardContent>
         </Card>

@@ -47,7 +47,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Verify token by getting user info
       apiClient.getMe()
         .then(response => {
-          if (response.success) {
+          if (response.success && response.data) {
             setUser(response.data.user);
           } else {
             // Token is invalid, clear it
@@ -56,7 +56,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setToken(null);
           }
         })
-        .catch((error) => {
+        .catch(() => {
           // Token is invalid, clear it
           localStorage.removeItem('authToken');
           apiClient.clearAuthToken();
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const response = await apiClient.login(email, password);
       
-      if (response.success) {
+      if (response.success && response.data) {
         const { accessToken: newToken, user: userData } = response.data;
         
         setToken(newToken);
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const response = await apiClient.register(email, password, username);
       
-      if (response.success) {
+      if (response.success && response.data) {
         const { accessToken: newToken, user: userData } = response.data;
         
         setToken(newToken);

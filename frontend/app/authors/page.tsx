@@ -9,42 +9,6 @@ import Navigation from '@/components/Navigation';
 import { useAuthors } from '@/hooks/useAuthors';
 import type { Language } from '@/types';
 
-// Mock authors data - in a real app this would come from API
-const mockAuthors = [
-  {
-    id: '1',
-    name: 'Jane Doe',
-    slug: 'jane-doe',
-    bio: {
-      en: 'Jane Doe is a bestselling author known for her engaging storytelling and vivid characters.',
-      tr: 'Jane Doe, ilgi çekici hikaye anlatımı ve canlı karakterleriyle tanınan çok satan bir yazardır.'
-    },
-    storyCount: 5,
-    createdAt: '2023-01-15T00:00:00Z'
-  },
-  {
-    id: '2',
-    name: 'John Smith',
-    slug: 'john-smith',
-    bio: {
-      en: 'John Smith is a technology writer with over 10 years of experience in software development.',
-      tr: 'John Smith, yazılım geliştirmede 10 yılı aşkın deneyime sahip bir teknoloji yazarıdır.'
-    },
-    storyCount: 3,
-    createdAt: '2023-02-20T00:00:00Z'
-  },
-  {
-    id: '3',
-    name: 'Maria Garcia',
-    slug: 'maria-garcia',
-    bio: {
-      en: 'Maria Garcia specializes in cultural stories and has lived in 8 different countries.',
-      tr: 'Maria Garcia kültürel hikayelerde uzmanlaşmıştır ve 8 farklı ülkede yaşamıştır.'
-    },
-    storyCount: 7,
-    createdAt: '2023-03-10T00:00:00Z'
-  }
-];
 
 export default function AuthorsPage() {
   const [language, setLanguage] = useState<Language>('en');
