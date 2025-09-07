@@ -15,7 +15,6 @@ import {
   TrendingUp,
   Users,
   Star,
-  Calendar,
   BarChart3,
   FileText,
   CheckCircle2,

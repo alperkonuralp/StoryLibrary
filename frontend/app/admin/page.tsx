@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -28,22 +28,22 @@ import { apiClient } from '@/lib/api';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'stories' | 'users' | 'categories' | 'authors' | 'series' | 'tags'>('overview');
-  const [editingUser, setEditingUser] = useState(null);
+  const [editingUser, setEditingUser] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deletingStory, setDeletingStory] = useState<string | null>(null);
   const [publishingStory, setPublishingStory] = useState<string | null>(null);
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState('');
-  const [editingCategory, setEditingCategory] = useState(null);
+  const [editingCategory, setEditingCategory] = useState<any>(null);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
-  const [editingTag, setEditingTag] = useState(null);
+  const [editingTag, setEditingTag] = useState<any>(null);
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [deletingTag, setDeletingTag] = useState<string | null>(null);
-  const [editingAuthor, setEditingAuthor] = useState(null);
+  const [editingAuthor, setEditingAuthor] = useState<any>(null);
   const [isAuthorDialogOpen, setIsAuthorDialogOpen] = useState(false);
   const [deletingAuthor, setDeletingAuthor] = useState<string | null>(null);
-  const [editingSeries, setEditingSeries] = useState(null);
+  const [editingSeries, setEditingSeries] = useState<any>(null);
   const [isSeriesDialogOpen, setIsSeriesDialogOpen] = useState(false);
   const [deletingSeries, setDeletingSeries] = useState<string | null>(null);
   const [selectedStories, setSelectedStories] = useState<string[]>([]);
@@ -53,14 +53,14 @@ export default function AdminDashboard() {
   
   // Fetch real data for admin dashboard
   const { stories, loading: storiesLoading, refetch: refetchStories } = useStories({ 
-    filters: { status: undefined, limit: 100 } // Get all stories regardless of status
+    filters: { limit: 100 } // Get all stories regardless of status
   });
   const { categories, loading: categoriesLoading, refetch: refetchCategories } = useCategories();
   const { tags, loading: tagsLoading, refetch: refetchTags } = useTags();
   const { users, loading: usersLoading, refetch: refetchUsers } = useUsers();
   const { authors, loading: authorsLoading, refetch: refetchAuthors } = useAuthors();
   const { series, loading: seriesLoading, refetch: refetchSeries } = useSeries();
-  const { analytics, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics();
+  const { analytics, loading: analyticsLoading } = useAnalytics();
 
   const handleEditUser = (user: any) => {
     setEditingUser(user);
@@ -688,7 +688,7 @@ export default function AdminDashboard() {
                     <CardContent>
                       <div className="text-2xl font-bold">{analytics?.overview.totalUsers || 0}</div>
                       <p className="text-xs text-muted-foreground">
-                        {analytics?.overview.totalAuthors || 0} authors, {analytics?.userDistribution?.find(u => u.role === 'ADMIN')?.count || 0} admin
+                        {analytics?.overview.totalAuthors || 0} authors, {analytics?.userDistribution?.find((u: any) => u.role === 'ADMIN')?.count || 0} admin
                       </p>
                     </CardContent>
                   </Card>
@@ -927,7 +927,7 @@ export default function AdminDashboard() {
                               <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                                 <span>By: {story.authors?.[0]?.author.name || 'Unknown'}</span>
                                 <span>Rating: {story.averageRating ? Number(story.averageRating).toFixed(1) : 'N/A'}</span>
-                                <span>Views: {story.viewCount || 0}</span>
+                                <span>Views: {(story as any).viewCount || 0}</span>
                               </div>
                               </div>
                             </div>
@@ -1012,7 +1012,7 @@ export default function AdminDashboard() {
                                 {category.description?.en || category.description?.tr || 'No description'}
                               </p>
                               <div className="text-xs text-gray-500 mt-1">
-                                Stories: {category._count?.stories || 0}
+                                Stories: {(category as any)._count?.stories || 0}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -1348,7 +1348,7 @@ export default function AdminDashboard() {
                               </p>
                               {seriesItem.stories && seriesItem.stories.length > 0 && (
                                 <div className="text-xs text-gray-500">
-                                  Stories: {seriesItem.stories.map(s => s.story?.title?.en || s.story?.title?.tr).join(', ')}
+                                  Stories: {seriesItem.stories.map((s: any) => s.story?.title?.en || s.story?.title?.tr).join(', ')}
                                 </div>
                               )}
                             </div>

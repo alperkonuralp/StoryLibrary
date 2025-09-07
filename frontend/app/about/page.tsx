@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Globe, Star, TrendingUp, Users, Zap } from 'lucide-react';
+import { BookOpen, Globe, Star, TrendingUp } from 'lucide-react';
 
 export default function AboutPage() {
   return (

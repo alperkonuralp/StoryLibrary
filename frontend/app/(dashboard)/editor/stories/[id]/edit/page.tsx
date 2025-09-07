@@ -12,8 +12,6 @@ import {
   Save, 
   Eye, 
   Send, 
-  Plus, 
-  Minus, 
   Languages,
   AlertCircle,
   CheckCircle2,
@@ -23,7 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
-import { mergeParagraphs, parseParagraphs, isValidContent, countWords, countParagraphs } from '@/lib/paragraph-utils';
+import { parseParagraphs, isValidContent, countWords, countParagraphs } from '@/lib/paragraph-utils';
 
 interface StoryFormData {
   id: string;

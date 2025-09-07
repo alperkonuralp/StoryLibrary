@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -43,7 +42,6 @@ interface Story {
 }
 
 export default function EditorStories() {
-  const { user } = useAuth();
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -126,8 +124,8 @@ export default function EditorStories() {
   };
 
   const filteredStories = stories.filter(story => {
-    const matchesSearch = story.title.en.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         story.title.tr.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = story.title?.en?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         story.title?.tr?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || story.status === statusFilter;
     return matchesSearch && matchesStatus;
   });

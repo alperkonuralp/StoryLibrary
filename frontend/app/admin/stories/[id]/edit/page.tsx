@@ -14,8 +14,6 @@ import {
   ArrowLeft, 
   Save, 
   Eye, 
-  Plus, 
-  Trash2, 
   Languages,
   BookOpen,
   User,

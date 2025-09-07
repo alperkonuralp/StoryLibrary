@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 export function useAnalytics() {
-  const [analytics, setAnalytics] = useState(null);
+  const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

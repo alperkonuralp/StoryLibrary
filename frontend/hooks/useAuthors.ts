@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 
 export function useAuthors() {
-  const [authors, setAuthors] = useState([]);
+  const [authors, setAuthors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

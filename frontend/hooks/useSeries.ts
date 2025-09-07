@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 
 export function useSeries() {
-  const [series, setSeries] = useState([]);
+  const [series, setSeries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

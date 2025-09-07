@@ -6,21 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { 
   Save, 
   Eye, 
   Send, 
-  Plus, 
-  Minus, 
   Languages,
   AlertCircle,
   CheckCircle2
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { mergeParagraphs, parseParagraphs, isValidContent, countWords, countParagraphs } from '@/lib/paragraph-utils';
+import { parseParagraphs, isValidContent, countWords, countParagraphs } from '@/lib/paragraph-utils';
 
 interface StoryFormData {
   title: { en: string; tr: string };
