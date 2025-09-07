@@ -20,21 +20,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: story-library-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - story-library-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ./backend
@@ -43,7 +28,7 @@ services:
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://postgres:password@postgres:5432/story_library?schema=public
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://192.168.111.236:6379
       JWT_SECRET: development-jwt-secret-change-in-production
       JWT_REFRESH_SECRET: development-refresh-secret-change-in-production
       FRONTEND_URL: http://localhost:3000
@@ -51,8 +36,6 @@ services:
       - "3001:3001"
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     volumes:
       - ./backend:/app
@@ -88,8 +71,6 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
-  redis_data:
     driver: local
 
 networks:
