@@ -1,0 +1,32 @@
+services:
+  # Test PostgreSQL first
+  postgres:
+    image: postgres:15-alpine
+    container_name: story-library-postgres-debug
+    restart: "no"
+    platform: linux/arm64
+    environment:
+      POSTGRES_DB: story_library
+      POSTGRES_USER: story_user
+      POSTGRES_PASSWORD: 09921823ba83b41a3f558dc39560d0d0
+    ports:
+      - "5432:5432"
+    networks:
+      - story-network
+
+  # Test Redis second
+  redis:
+    image: redis:7-alpine
+    container_name: story-library-redis-debug
+    restart: "no"
+    platform: linux/arm64
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    networks:
+      - story-network
+
+networks:
+  story-network:
+    driver: bridge
+    name: story-library-network-debug

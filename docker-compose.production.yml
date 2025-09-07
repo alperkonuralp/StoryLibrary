@@ -4,6 +4,7 @@ services:
     image: postgres:15-alpine
     container_name: story-library-postgres
     restart: unless-stopped
+    platform: linux/arm64
     environment:
       POSTGRES_DB: story_library
       POSTGRES_USER: story_user
@@ -16,10 +17,10 @@ services:
       - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U story_user -d story_library"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+      interval: 45s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
     networks:
       - story-network
     labels:
@@ -32,16 +33,18 @@ services:
     image: redis:7-alpine
     container_name: story-library-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    platform: linux/arm64
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     ports:
       - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
+      interval: 45s
+      timeout: 15s
       retries: 3
+      start_period: 30s
     networks:
       - story-network
     labels:
@@ -54,8 +57,11 @@ services:
     build: 
       context: ./backend
       dockerfile: Dockerfile
+      platforms:
+        - linux/arm64
     container_name: story-library-backend
     restart: unless-stopped
+    platform: linux/arm64
     env_file:
       - .env.production
     environment:
@@ -71,6 +77,12 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/uploads:/app/uploads
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
     networks:
       - story-network
     labels:
@@ -90,8 +102,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      platforms:
+        - linux/arm64
     container_name: story-library-frontend
     restart: unless-stopped
+    platform: linux/arm64
     env_file:
       - ./frontend/.env.production
     environment:
@@ -101,6 +116,12 @@ services:
       - "30010:3000"
     depends_on:
       - backend
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+        reservations:
+          memory: 128m
     networks:
       - story-network
     labels:

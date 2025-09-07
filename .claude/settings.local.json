@@ -28,7 +28,8 @@
       "Bash(docker-compose:*)",
       "Bash(docker exec:*)",
       "Bash(winpty docker exec:*)",
-      "Bash(docker system prune:*)"
+      "Bash(docker system prune:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
