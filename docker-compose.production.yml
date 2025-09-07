@@ -14,7 +14,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U story_user -d story_library"]
       interval: 45s
@@ -38,7 +38,7 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 45s
@@ -77,12 +77,6 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/uploads:/app/uploads
-    deploy:
-      resources:
-        limits:
-          memory: 512m
-        reservations:
-          memory: 256m
     networks:
       - story-network
     labels:
@@ -116,12 +110,6 @@ services:
       - "30010:3000"
     depends_on:
       - backend
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-        reservations:
-          memory: 128m
     networks:
       - story-network
     labels:
