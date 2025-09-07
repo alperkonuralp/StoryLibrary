@@ -22,8 +22,8 @@ RUN npx prisma generate
 # Build TypeScript
 RUN npm run build
 
-# Remove dev dependencies after build
-RUN npm prune --production
+# Skip pruning to keep all dependencies for now
+# RUN npm prune --production
 
 # Expose port
 EXPOSE 3001

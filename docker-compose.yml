@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -43,7 +41,7 @@ services:
       - /app/dist
     networks:
       - story-library-network
-    command: npm run dev
+    command: npm start
     restart: unless-stopped
 
   frontend:
@@ -66,7 +64,7 @@ services:
       - /app/.next
     networks:
       - story-library-network
-    command: npm run dev
+    command: npm start
     restart: unless-stopped
 
 volumes:
