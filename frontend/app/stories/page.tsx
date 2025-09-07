@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { StoryList } from '@/components/story/StoryList';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { useStories } from '@/hooks/useStories';
 import AdvancedSearch from '@/components/search/AdvancedSearch';
 import type { StoryFilters } from '@/types';
 
-export default function StoriesPage() {
+function StoriesContent() {
   const searchParams = useSearchParams();
   const [storyLanguage, setStoryLanguage] = useState<'en' | 'tr'>('en');
   const [searchQuery, setSearchQuery] = useState('');
@@ -158,5 +158,20 @@ export default function StoriesPage() {
         )}
       </section>
     </div>
+  );
+}
+
+export default function StoriesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen">
+        <Navigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">Loading...</div>
+        </div>
+      </div>
+    }>
+      <StoriesContent />
+    </Suspense>
   );
 }
